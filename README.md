@@ -48,7 +48,7 @@ Se usi phpMyAdmin o il pannello Plesk senza SSH, importa i file `.sql` uno alla 
 
 ## PWA e notifiche dispositivo
 
-L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: il browser salva una sottoscrizione Push API collegata all'utente e il server invia un Web Push VAPID ogni volta che viene creata una notifica interna.
+L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: il browser salva una sottoscrizione Push API collegata all'utente e il server invia un Web Push VAPID cifrato con titolo e testo ogni volta che viene creata una notifica interna. In questo modo la notifica può apparire anche se la PWA è chiusa, nei limiti del supporto push del browser/sistema operativo.
 
 Le chiavi VAPID sono già precompilate in `includes/config.php` per evitare errori in prima installazione. Per una configurazione definitiva del tuo dominio è comunque consigliato rigenerarle e sostituire `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`:
 

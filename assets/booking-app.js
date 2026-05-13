@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0, notifiedNotificationIds: new Set(), notificationPollTimer: null, pushSubscribed: false };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0, notifiedNotificationIds: new Set(), notificationPollTimer: null, pushSubscribed: false, toastTimer: null };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -42,7 +42,11 @@ function toast(message) {
   const node = $('#toast');
   node.textContent = message;
   node.classList.add('show');
-  setTimeout(() => node.classList.remove('show'), 3200);
+  clearTimeout(state.toastTimer);
+  state.toastTimer = setTimeout(() => {
+    node.classList.remove('show');
+    node.addEventListener('transitionend', () => { if (!node.classList.contains('show')) node.textContent = ''; }, { once: true });
+  }, 3200);
 }
 
 function formData(form) {

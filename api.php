@@ -76,7 +76,13 @@ function create_notification(int $userId, string $type, string $title, string $b
 {
     $stmt = db()->prepare('INSERT INTO notifications (user_id, appointment_id, type, title, body) VALUES (?,?,?,?,?)');
     $stmt->execute([$userId, $appointmentId, $type, $title, $body]);
-    send_web_push_to_user($userId);
+    send_web_push_to_user($userId, [
+        'id' => (int)db()->lastInsertId(),
+        'type' => $type,
+        'title' => $title,
+        'body' => $body,
+        'appointment_id' => $appointmentId,
+    ]);
 }
 
 function handle_push_public_key(): void
@@ -114,16 +120,16 @@ function handle_push_unsubscribe(): void
     json_response(['ok' => true]);
 }
 
-function send_web_push_to_user(int $userId): void
+function send_web_push_to_user(int $userId, array $notification): void
 {
     if (VAPID_PUBLIC_KEY === '' || VAPID_PRIVATE_KEY === '') {
         return;
     }
     try {
-        $stmt = db()->prepare('SELECT id, endpoint FROM push_subscriptions WHERE user_id = ?');
+        $stmt = db()->prepare('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?');
         $stmt->execute([$userId]);
         foreach ($stmt->fetchAll() as $subscription) {
-            $status = send_web_push((string)$subscription['endpoint']);
+            $status = send_web_push($subscription, $notification);
             if (in_array($status, [404, 410], true)) {
                 db()->prepare('DELETE FROM push_subscriptions WHERE id = ?')->execute([(int)$subscription['id']]);
             }
@@ -133,13 +139,18 @@ function send_web_push_to_user(int $userId): void
     }
 }
 
-function send_web_push(string $endpoint): int
+function send_web_push(array $subscription, array $notification): int
 {
+    $endpoint = (string)$subscription['endpoint'];
     $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
     $jwt = vapid_jwt($audience);
+    $payload = json_encode($notification + ['url' => './'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+    [$body, $contentEncoding] = encrypt_web_push_payload($payload, (string)$subscription['p256dh'], (string)$subscription['auth']);
     $headers = [
-        'TTL: 60',
-        'Content-Length: 0',
+        'TTL: 3600',
+        'Content-Encoding: ' . $contentEncoding,
+        'Content-Type: application/octet-stream',
+        'Content-Length: ' . strlen($body),
         'Authorization: vapid t=' . $jwt . ', k=' . VAPID_PUBLIC_KEY,
         'Crypto-Key: p256ecdsa=' . VAPID_PUBLIC_KEY,
     ];
@@ -148,9 +159,10 @@ function send_web_push(string $endpoint): int
         $ch = curl_init($endpoint);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 3,
+            CURLOPT_TIMEOUT => 5,
             CURLOPT_HEADER => false,
         ]);
         curl_exec($ch);
@@ -161,14 +173,66 @@ function send_web_push(string $endpoint): int
 
     $context = stream_context_create(['http' => [
         'method' => 'POST',
-        'header' => implode("
-", $headers),
-        'timeout' => 3,
+        'header' => implode("\r\n", $headers),
+        'content' => $body,
+        'timeout' => 5,
         'ignore_errors' => true,
     ]]);
     @file_get_contents($endpoint, false, $context);
     $statusLine = $http_response_header[0] ?? '';
     return preg_match('/\s(\d{3})\s/', $statusLine, $matches) ? (int)$matches[1] : 0;
+}
+
+function encrypt_web_push_payload(string $payload, string $receiverPublicKey, string $authSecret): array
+{
+    $receiverPublic = base64url_decode($receiverPublicKey);
+    $auth = base64url_decode($authSecret);
+    $salt = random_bytes(16);
+    $localKey = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
+    if (!$localKey) {
+        throw new RuntimeException('Impossibile generare chiave ECDH Web Push.');
+    }
+    $localDetails = openssl_pkey_get_details($localKey);
+    $senderPublic = "\x04" . $localDetails['ec']['x'] . $localDetails['ec']['y'];
+    $peerKey = openssl_pkey_get_public(public_key_pem_from_raw($receiverPublic));
+    if (!$peerKey) {
+        throw new RuntimeException('Chiave pubblica Push API non valida.');
+    }
+    $sharedSecret = openssl_pkey_derive($peerKey, $localKey, 32);
+    if ($sharedSecret === false) {
+        throw new RuntimeException('Derivazione chiave Web Push non riuscita.');
+    }
+
+    $keyInfo = "WebPush: info\x00" . $receiverPublic . $senderPublic;
+    $ikm = hkdf_expand(hash_hmac('sha256', $sharedSecret, $auth, true), $keyInfo, 32);
+    $prk = hash_hmac('sha256', $ikm, $salt, true);
+    $cek = hkdf_expand($prk, "Content-Encoding: aes128gcm\x00", 16);
+    $nonce = hkdf_expand($prk, "Content-Encoding: nonce\x00", 12);
+    $record = $payload . "\x02";
+    $ciphertext = openssl_encrypt($record, 'aes-128-gcm', $cek, OPENSSL_RAW_DATA, $nonce, $tag);
+    if ($ciphertext === false) {
+        throw new RuntimeException('Cifratura Web Push non riuscita.');
+    }
+
+    $rs = pack('N', 4096);
+    return [$salt . $rs . chr(strlen($senderPublic)) . $senderPublic . $ciphertext . $tag, 'aes128gcm'];
+}
+
+function hkdf_expand(string $prk, string $info, int $length): string
+{
+    $output = '';
+    $block = '';
+    for ($i = 1; strlen($output) < $length; $i++) {
+        $block = hash_hmac('sha256', $block . $info . chr($i), $prk, true);
+        $output .= $block;
+    }
+    return substr($output, 0, $length);
+}
+
+function public_key_pem_from_raw(string $rawKey): string
+{
+    $der = hex2bin('3059301306072A8648CE3D020106082A8648CE3D030107034200') . $rawKey;
+    return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END PUBLIC KEY-----\n";
 }
 
 function vapid_jwt(string $audience): string
@@ -210,6 +274,11 @@ function der_to_jose_signature(string $der, int $partLength): string
 function base64url_encode(string $data): string
 {
     return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function base64url_decode(string $data): string
+{
+    return base64_decode(strtr($data, '-_', '+/') . str_repeat('=', (4 - strlen($data) % 4) % 4)) ?: '';
 }
 
 function admin_user_ids(): array
