@@ -11,6 +11,7 @@ Webapp mobile-first in PHP, JavaScript/AJAX e MySQL per gestire prenotazioni di 
 - Prenotazione automatica confermata, modifica ed eliminazione appuntamenti.
 - Dashboard admin con calendario mensile di tutti gli appuntamenti.
 - Chiusure settimanali e giorni speciali configurabili dall'admin.
+- Notifiche interne per admin e clienti su nuove prenotazioni e cancellazioni.
 - Gestione appuntamenti, apertura WhatsApp verso il cliente, gestione servizi e clienti.
 - Profilo modificabile per clienti e admin, inclusa la password.
 - Tema light/dark, layout responsive e palette blu/rosso/bianco/grigi.
@@ -31,6 +32,8 @@ Le modifiche database sono versionate nella cartella `migrations/` e vanno appli
 1. `001_create_database.sql` crea il database e la tabella `schema_migrations`.
 2. `002_create_core_tables.sql` crea utenti, servizi, appuntamenti e recuperi password.
 3. `003_seed_initial_data.sql` inserisce admin iniziale e servizi di esempio.
+4. `004_create_closure_settings.sql` aggiunge chiusure settimanali e giorni speciali.
+5. `005_create_notifications.sql` aggiunge le notifiche interne per admin e clienti.
 
 Da terminale, se Plesk consente l'accesso SSH, puoi eseguire:
 

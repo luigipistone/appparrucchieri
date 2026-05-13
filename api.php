@@ -28,6 +28,8 @@ try {
         'appointments' => handle_appointments(),
         'appointment_save' => handle_appointment_save(),
         'appointment_delete' => handle_appointment_delete(),
+        'notifications' => handle_notifications(),
+        'notifications_read' => handle_notifications_read(),
         'profile_save' => handle_profile_save(),
         'users' => handle_users(),
         'user_save' => handle_user_save(),
@@ -36,6 +38,71 @@ try {
 } catch (Throwable $e) {
     error_log($e->getMessage());
     json_response(['ok' => false, 'message' => 'Errore imprevisto, riprova più tardi.'], 500);
+}
+
+function handle_notifications(): void
+{
+    $user = require_auth();
+    $stmt = db()->prepare('SELECT id, appointment_id, type, title, body, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50');
+    $stmt->execute([(int)$user['id']]);
+    $items = $stmt->fetchAll();
+    $countStmt = db()->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL');
+    $countStmt->execute([(int)$user['id']]);
+    json_response(['ok' => true, 'notifications' => $items, 'unread' => (int)$countStmt->fetchColumn()]);
+}
+
+function handle_notifications_read(): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        json_response(['ok' => false, 'message' => 'Metodo non consentito.'], 405);
+    }
+    $user = require_auth();
+    $data = input();
+    $id = (int)($data['id'] ?? 0);
+    if ($id > 0) {
+        db()->prepare('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?')->execute([$id, (int)$user['id']]);
+    } else {
+        db()->prepare('UPDATE notifications SET read_at = NOW() WHERE user_id = ? AND read_at IS NULL')->execute([(int)$user['id']]);
+    }
+    json_response(['ok' => true]);
+}
+
+function create_notification(int $userId, string $type, string $title, string $body = '', ?int $appointmentId = null): void
+{
+    $stmt = db()->prepare('INSERT INTO notifications (user_id, appointment_id, type, title, body) VALUES (?,?,?,?,?)');
+    $stmt->execute([$userId, $appointmentId, $type, $title, $body]);
+}
+
+function admin_user_ids(): array
+{
+    return array_map('intval', db()->query("SELECT id FROM users WHERE role = 'admin'")->fetchAll(PDO::FETCH_COLUMN) ?: []);
+}
+
+function notify_admins(string $type, string $title, string $body = '', ?int $appointmentId = null): void
+{
+    foreach (admin_user_ids() as $adminId) {
+        create_notification($adminId, $type, $title, $body, $appointmentId);
+    }
+}
+
+function appointment_notification_text(array $appointment, string $fallbackService = ''): string
+{
+    $service = $appointment['service_name'] ?? $fallbackService ?: 'Servizio';
+    $customer = trim(($appointment['first_name'] ?? '') . ' ' . ($appointment['last_name'] ?? '')) ?: 'Cliente';
+    $starts = new DateTimeImmutable((string)$appointment['starts_at']);
+    return $service . ' · ' . $customer . ' · ' . $starts->format('d/m/Y H:i');
+}
+
+function fetch_appointment_details(int $id): ?array
+{
+    $stmt = db()->prepare("SELECT a.*, s.name service_name, u.first_name, u.last_name, u.email, u.phone
+        FROM appointments a
+        JOIN services s ON s.id = a.service_id
+        JOIN users u ON u.id = a.user_id
+        WHERE a.id = ? LIMIT 1");
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    return $row ?: null;
 }
 
 function handle_me(): void
@@ -382,8 +449,18 @@ function handle_appointment_save(): void
         $stmt = db()->prepare("UPDATE appointments SET service_id=?, starts_at=?, ends_at=?, user_id=? WHERE $ownerSql");
         $stmt->execute($params);
     } else {
-        $stmt = db()->prepare('INSERT INTO appointments (user_id, service_id, starts_at, ends_at, status) VALUES (?,?,?,?,\'confermato\')');
+        $stmt = db()->prepare("INSERT INTO appointments (user_id, service_id, starts_at, ends_at, status) VALUES (?,?,?,?, 'confermato')");
         $stmt->execute([$clientId, $serviceId, $starts->format('Y-m-d H:i:s'), $ends->format('Y-m-d H:i:s')]);
+        $id = (int)db()->lastInsertId();
+        $details = fetch_appointment_details($id) ?: [
+            'starts_at' => $starts->format('Y-m-d H:i:s'),
+            'service_name' => $service['name'],
+            'first_name' => $user['first_name'],
+            'last_name' => $user['last_name'],
+        ];
+        $text = appointment_notification_text($details, (string)$service['name']);
+        notify_admins('appointment_created', 'Nuovo appuntamento', $text, $id);
+        create_notification($clientId, 'appointment_created', 'Prenotazione confermata', $text, $id);
     }
     db()->commit();
     json_response(['ok' => true]);
@@ -393,11 +470,29 @@ function handle_appointment_delete(): void
 {
     $user = require_auth();
     $id = (int)(input()['id'] ?? 0);
-    if ($user['role'] === 'admin') {
-        db()->prepare("UPDATE appointments SET status='annullato' WHERE id=?")->execute([$id]);
-    } else {
-        db()->prepare("UPDATE appointments SET status='annullato' WHERE id=? AND user_id=?")->execute([$id, (int)$user['id']]);
+    $details = fetch_appointment_details($id);
+    if (!$details) {
+        json_response(['ok' => false, 'message' => 'Appuntamento non trovato.'], 404);
     }
+
+    db()->beginTransaction();
+    if ($user['role'] === 'admin') {
+        $update = db()->prepare("UPDATE appointments SET status='annullato' WHERE id=? AND status='confermato'");
+        $update->execute([$id]);
+    } else {
+        $update = db()->prepare("UPDATE appointments SET status='annullato' WHERE id=? AND user_id=? AND status='confermato'");
+        $update->execute([$id, (int)$user['id']]);
+    }
+    if ($update->rowCount() < 1) {
+        db()->rollBack();
+        json_response(['ok' => false, 'message' => 'Appuntamento non cancellabile.'], 422);
+    }
+
+    $text = appointment_notification_text($details);
+    notify_admins('appointment_cancelled', 'Appuntamento eliminato', $text, $id);
+    $customerTitle = (int)$details['user_id'] === (int)$user['id'] ? 'Hai eliminato la prenotazione' : 'Prenotazione eliminata';
+    create_notification((int)$details['user_id'], 'appointment_cancelled', $customerTitle, $text, $id);
+    db()->commit();
     json_response(['ok' => true]);
 }
 

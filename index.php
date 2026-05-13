@@ -12,7 +12,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-7">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-8">
 </head>
 <body>
     <div class="app-shell">
@@ -26,6 +26,10 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
             <div class="top-actions">
                 <button class="icon-btn" id="themeToggle" type="button" aria-label="Cambia tema">
                     <svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+                </button>
+                <button class="icon-btn hidden notification-btn" id="notificationsBtn" type="button" aria-label="Notifiche">
+                    <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Zm-8.5 12a3 3 0 0 0 5 0"/></svg>
+                    <span class="notification-badge hidden" id="notificationBadge">0</span>
                 </button>
                 <button class="icon-btn hidden" id="profileHeaderBtn" type="button" aria-label="Profilo">
                     <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg>
@@ -149,6 +153,15 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
         </main>
     </div>
 
+
+    <dialog id="notificationsDialog" class="modal">
+        <form method="dialog" class="panel notifications-panel">
+            <button class="close" value="cancel" aria-label="Chiudi">×</button>
+            <div class="modal-head"><h2>Notifiche</h2><button class="ghost" id="markNotificationsReadBtn" type="button">Segna lette</button></div>
+            <div id="notificationsList" class="list compact-list"></div>
+        </form>
+    </dialog>
+
     <dialog id="slotDialog" class="modal">
         <form method="dialog" class="panel">
             <button class="close" value="cancel" aria-label="Chiudi">×</button>
@@ -199,6 +212,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-7" defer></script>
+    <script src="assets/booking-app.js?v=20260513-8" defer></script>
 </body>
 </html>

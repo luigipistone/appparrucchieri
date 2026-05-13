@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {} };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], unreadNotifications: 0 };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -76,8 +76,10 @@ function bindEvents() {
   $('#registerForm').addEventListener('submit', submitAuth('register'));
   $('#forgotForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('forgot_password', formData(event.currentTarget)); toast(res.message); if (res.reset_url_demo) console.info('Reset URL demo:', res.reset_url_demo); });
   $('#resetForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('reset_password', formData(event.currentTarget)); toast(res.message); event.currentTarget.classList.add('hidden'); switchAuth('login'); });
-  $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; renderSession(); });
+  $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; state.notifications = []; state.unreadNotifications = 0; renderNotifications(); renderSession(); });
   $('#profileHeaderBtn').addEventListener('click', () => showView('profile'));
+  $('#notificationsBtn').addEventListener('click', openNotifications);
+  $('#markNotificationsReadBtn').addEventListener('click', markNotificationsRead);
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; state.day = `${state.month}-01`; await refreshCalendar(); });
   $('#prevMonth').addEventListener('click', () => shiftCalendar(-1));
@@ -130,6 +132,7 @@ function renderSession() {
   $('#appView').classList.toggle('hidden', !logged);
   $('#logoutBtn').classList.toggle('hidden', !logged);
   $('#profileHeaderBtn').classList.toggle('hidden', !logged);
+  $('#notificationsBtn').classList.toggle('hidden', !logged);
   $$('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin()));
   $$('.client-only').forEach(el => el.classList.toggle('hidden', isAdmin()));
   if (!isAdmin()) state.bookingStep = 'services';
@@ -157,6 +160,7 @@ async function refreshAll() {
   renderClosures();
   renderProfile();
   renderBookingStep();
+  await refreshNotifications();
 }
 
 async function refreshCalendar() {
@@ -337,7 +341,7 @@ function appointmentRow(a) {
 }
 
 function wireAppointmentActions(root) {
-  $$('[data-del-appt]', root).forEach(btn => btn.addEventListener('click', async () => { if (confirm('Eliminare questo appuntamento?')) { await api('appointment_delete', { id: btn.dataset.delAppt }); toast('Appuntamento eliminato.'); await refreshCalendar(); } }));
+  $$('[data-del-appt]', root).forEach(btn => btn.addEventListener('click', async () => { if (confirm('Eliminare questo appuntamento?')) { await api('appointment_delete', { id: btn.dataset.delAppt }); toast('Appuntamento eliminato.'); await refreshCalendar(); await refreshNotifications(); } }));
   $$('[data-edit-appt]', root).forEach(btn => btn.addEventListener('click', () => {
     const appointment = state.appointments.find(item => Number(item.id) === Number(btn.dataset.editAppt));
     if (appointment) openAppointmentDialog(appointment);
@@ -397,6 +401,7 @@ async function saveAppointment(payload) {
   await api('appointment_save', payload);
   toast('Appuntamento confermato.');
   await refreshCalendar();
+  await refreshNotifications();
 }
 
 function renderAdminServices() {
@@ -492,6 +497,39 @@ async function saveClosures(event) {
   await refreshAll();
 }
 
+async function refreshNotifications() {
+  if (!state.user) return;
+  const res = await api('notifications');
+  state.notifications = res.notifications || [];
+  state.unreadNotifications = res.unread || 0;
+  renderNotifications();
+}
+
+function renderNotifications() {
+  const badge = $('#notificationBadge');
+  badge.textContent = state.unreadNotifications > 9 ? '9+' : String(state.unreadNotifications);
+  badge.classList.toggle('hidden', state.unreadNotifications < 1);
+  const list = $('#notificationsList');
+  if (!list) return;
+  list.innerHTML = state.notifications.length
+    ? state.notifications.map(item => `<article class="list-item notification-item ${item.read_at ? '' : 'unread'}"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body || '')}</p><small>${formatDateTime(item.created_at)}</small></div>${item.read_at ? '' : `<button class="ghost" data-read-notification="${item.id}" type="button">Letta</button>`}</article>`).join('')
+    : '<p class="hint">Nessuna notifica.</p>';
+  $$('[data-read-notification]').forEach(btn => btn.addEventListener('click', async () => {
+    await api('notifications_read', { id: btn.dataset.readNotification });
+    await refreshNotifications();
+  }));
+}
+
+async function openNotifications() {
+  await refreshNotifications();
+  $('#notificationsDialog').showModal();
+}
+
+async function markNotificationsRead() {
+  await api('notifications_read', {});
+  await refreshNotifications();
+}
+
 function renderProfile() {
   const u = state.user;
   $('#profileForm').innerHTML = `<div class="two-cols"><label>Nome<input name="first_name" value="${escapeAttr(u.first_name)}" required></label><label>Cognome<input name="last_name" value="${escapeAttr(u.last_name)}" required></label></div><label>Email<input name="email" type="email" value="${escapeAttr(u.email)}" required></label><label>Telefono<input name="phone" value="${escapeAttr(u.phone)}" required></label>${isAdmin() ? '<label>Ruolo<select name="role"><option value="admin">Admin</option><option value="cliente">Cliente</option></select></label>' : ''}<label>Nuova password <span class="hint">(opzionale)</span><input name="password" type="password" minlength="8"></label><button class="primary" type="submit">Salva profilo</button>`;
@@ -541,6 +579,7 @@ function localIso(date) {
 }
 function normalizeWa(phone) { return phone.replace(/[^0-9]/g, ''); }
 function formatDate(date) { return new Date(`${date}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }); }
+function formatDateTime(value) { return new Date(String(value).replace(' ', 'T')).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])); }
 function escapeAttr(value) { return escapeHtml(value); }
 
