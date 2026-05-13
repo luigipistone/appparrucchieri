@@ -90,6 +90,22 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     CONSTRAINT fk_push_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key VARCHAR(80) PRIMARY KEY,
+    setting_value TEXT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO app_settings (setting_key, setting_value) VALUES
+('business_name', 'Barber'),
+('business_subtitle', 'booking'),
+('logo_path', ''),
+('primary_color', '#335eac'),
+('accent_color', '#f42539'),
+('background_color', '#ffffff')
+ON DUPLICATE KEY UPDATE setting_value = setting_value;
+
 CREATE TABLE IF NOT EXISTS weekly_closures (
     weekday TINYINT UNSIGNED PRIMARY KEY,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -126,4 +142,5 @@ INSERT IGNORE INTO schema_migrations (version, description) VALUES
 ('003', 'seed initial admin user and default services'),
 ('004', 'create admin configurable closure settings'),
 ('005', 'create internal notifications table'),
-('006', 'create web push subscriptions table');
+('006', 'create web push subscriptions table'),
+('007', 'create configurable app settings');

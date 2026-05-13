@@ -11,21 +11,22 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Barber">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml">
     <title><?= APP_NAME ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-14">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-15">
 </head>
 <body>
     <div class="app-shell">
         <header class="topbar">
             <a class="brand" href="#dashboard" aria-label="Homepage portale parrucchieri">
                 <span class="brand-mark" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M4 20 20 4M7 7l10 10M6.5 5.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm16 13a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z"/></svg>
+                    <img id="brandLogo" class="brand-logo hidden" alt="">
+                    <svg id="brandDefaultIcon" viewBox="0 0 24 24"><path d="M4 20 20 4M7 7l10 10M6.5 5.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm16 13a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z"/></svg>
                 </span>
-                <span><strong>Barber</strong><small>booking</small></span>
+                <span><strong id="brandName">Barber</strong><small id="brandSubtitle">booking</small></span>
             </a>
             <div class="top-actions">
                 <button class="icon-btn" id="themeToggle" type="button" aria-label="Cambia tema">
@@ -152,6 +153,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                 <section class="view hidden" id="profileView">
                     <div class="section-head"><div><span class="eyebrow">Account</span><h1>Profilo</h1></div></div>
                     <form id="profileForm" class="panel form-grid"></form>
+                    <form id="appSettingsForm" class="panel form-grid admin-only hidden" enctype="multipart/form-data"></form>
                 </section>
 
                 <section class="view hidden" id="notificationArchiveView">
@@ -223,6 +225,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-14" defer></script>
+    <script src="assets/booking-app.js?v=20260513-15" defer></script>
 </body>
 </html>

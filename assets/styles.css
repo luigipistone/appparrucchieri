@@ -9,3 +9,4 @@ button,.nav-item,.service-card,.day,.list-item,.panel,.icon-btn,.ghost,.primary,
 .notification-permission{width:100%;margin:0 0 10px;padding:10px 12px;font-size:12px}
 .toast{opacity:0;visibility:hidden;pointer-events:none;transition:transform .25s ease,opacity .25s ease,visibility 0s linear .25s}.toast.show{opacity:1;visibility:visible;transition:transform .25s ease,opacity .25s ease}
 input,select,textarea{font-size:16px;line-height:1.25}
+.brand-logo{width:30px;height:30px;object-fit:contain}.three-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.settings-logo-preview{width:92px;height:92px;object-fit:contain;border:1px solid var(--line);border-radius:22px;background:var(--light);padding:10px}@media (max-width:760px){.three-cols{grid-template-columns:1fr}}

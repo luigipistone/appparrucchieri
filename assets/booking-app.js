@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0, notifiedNotificationIds: new Set(), notificationPollTimer: null, pushSubscribed: false, toastTimer: null };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0, notifiedNotificationIds: new Set(), notificationPollTimer: null, pushSubscribed: false, toastTimer: null, appSettings: {} };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -67,6 +67,9 @@ async function boot() {
   setTheme(localStorage.getItem('theme') || 'light');
   $('#monthPicker').value = state.month;
   bindEvents();
+  const settings = await api('app_settings');
+  state.appSettings = settings.settings || {};
+  applyAppSettings();
   const me = await api('me');
   state.user = me.user;
   renderSession();
@@ -114,6 +117,7 @@ function bindEvents() {
   $('#clearAppointmentFilterBtn').addEventListener('click', () => { state.appointmentDateFilter = ''; $('#appointmentDateFilter').value = ''; renderAppointments(); });
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
+  $('#appSettingsForm').addEventListener('submit', saveAppSettings);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
   registerServiceWorker();
 }
@@ -145,6 +149,7 @@ function renderSession() {
   $$('.client-only').forEach(el => el.classList.toggle('hidden', isAdmin()));
   if (!isAdmin()) state.bookingStep = 'services';
   $('#roleLabel').textContent = isAdmin() ? 'Area admin' : 'Area cliente';
+  renderAppSettings();
   renderBookingStep();
   if (logged) startNotificationPolling(); else stopNotificationPolling();
 }
@@ -169,6 +174,7 @@ async function refreshAll() {
   renderClients();
   renderClosures();
   renderProfile();
+  renderAppSettings();
   renderBookingStep();
   renderNotificationArchive();
   await refreshNotifications();
@@ -647,7 +653,7 @@ async function notifyDeviceForNewNotifications(items) {
   if (!fresh.length) return;
   const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready.catch(() => null) : null;
   fresh.slice(0, 3).forEach(item => {
-    const options = { body: item.body || '', icon: 'assets/icon.svg', badge: 'assets/icon.svg', tag: `barber-notification-${item.id}` };
+    const options = { body: item.body || '', icon: 'assets/app-icon.svg', badge: 'assets/app-icon.svg', tag: `barber-notification-${item.id}` };
     if (registration) registration.showNotification(item.title, options);
     else new Notification(item.title, options);
     state.notifiedNotificationIds.add(String(item.id));
@@ -672,6 +678,58 @@ function registerServiceWorker() {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').then(syncPushSubscriptionState).catch(error => console.warn('Service worker non registrato:', error));
   });
+}
+
+
+function applyAppSettings() {
+  const settings = state.appSettings || {};
+  const primary = settings.primary_color || '#335eac';
+  const accent = settings.accent_color || '#f42539';
+  const background = settings.background_color || '#ffffff';
+  document.documentElement.style.setProperty('--blue', primary);
+  document.documentElement.style.setProperty('--red', accent);
+  document.documentElement.style.setProperty('--bg', background);
+  document.documentElement.style.setProperty('--card', background);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', primary);
+  if (settings.business_name) {
+    document.title = settings.business_name;
+    $('#brandName').textContent = settings.business_name;
+  }
+  $('#brandSubtitle').textContent = settings.business_subtitle || '';
+  const logo = $('#brandLogo');
+  const defaultIcon = $('#brandDefaultIcon');
+  const favicon = document.querySelector('link[rel="icon"]');
+  const iconPath = settings.app_icon_path || 'assets/app-icon.svg';
+  if (favicon) favicon.href = `${iconPath}?v=${Date.now()}`;
+  if (settings.logo_path) {
+    logo.src = `${settings.logo_path}?v=${Date.now()}`;
+    logo.classList.remove('hidden');
+    defaultIcon.classList.add('hidden');
+  } else {
+    logo.classList.add('hidden');
+    defaultIcon.classList.remove('hidden');
+  }
+}
+
+function renderAppSettings() {
+  const form = $('#appSettingsForm');
+  if (!form) return;
+  form.classList.toggle('hidden', !isAdmin());
+  if (!isAdmin()) {
+    form.innerHTML = '';
+    return;
+  }
+  const settings = state.appSettings || {};
+  form.innerHTML = `<span class="eyebrow">Impostazioni app</span><h2>Brand e colori</h2><label>Logo attività <span class="hint">PNG, JPG o WEBP. Aggiorna anche favicon e app icon.</span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp"></label>${settings.logo_path ? `<img class="settings-logo-preview" src="${escapeAttr(settings.logo_path)}?v=${Date.now()}" alt="Logo attuale">` : ''}<div class="two-cols"><label>Nome attività<input name="business_name" value="${escapeAttr(settings.business_name || 'Barber')}" maxlength="80" required></label><label>Sottotitolo<input name="business_subtitle" value="${escapeAttr(settings.business_subtitle || 'booking')}" maxlength="80"></label></div><div class="three-cols"><label>Colore principale<input name="primary_color" type="color" value="${escapeAttr(settings.primary_color || '#335eac')}"></label><label>Colore accento<input name="accent_color" type="color" value="${escapeAttr(settings.accent_color || '#f42539')}"></label><label>Sfondo app<input name="background_color" type="color" value="${escapeAttr(settings.background_color || '#ffffff')}"></label></div><button class="primary" type="submit">Salva impostazioni app</button>`;
+}
+
+async function saveAppSettings(event) {
+  event.preventDefault();
+  const res = await api('app_settings_save', new FormData(event.currentTarget));
+  state.appSettings = res.settings || {};
+  applyAppSettings();
+  renderAppSettings();
+  toast('Impostazioni app salvate.');
 }
 
 function renderProfile() {

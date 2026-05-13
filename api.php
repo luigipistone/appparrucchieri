@@ -19,6 +19,8 @@ try {
         'logout' => handle_logout(),
         'forgot_password' => handle_forgot_password(),
         'reset_password' => handle_reset_password(),
+        'app_settings' => handle_app_settings(),
+        'app_settings_save' => handle_app_settings_save(),
         'services' => handle_services(),
         'service_save' => handle_service_save(),
         'service_delete' => handle_service_delete(),
@@ -41,6 +43,126 @@ try {
 } catch (Throwable $e) {
     error_log($e->getMessage());
     json_response(['ok' => false, 'message' => 'Errore imprevisto, riprova più tardi.'], 500);
+}
+
+
+function default_app_settings(): array
+{
+    return [
+        'business_name' => 'Barber',
+        'business_subtitle' => 'booking',
+        'logo_path' => '',
+        'app_icon_path' => 'assets/app-icon.svg',
+        'primary_color' => '#335eac',
+        'accent_color' => '#f42539',
+        'background_color' => '#ffffff',
+    ];
+}
+
+function app_settings(): array
+{
+    $settings = default_app_settings();
+    $rows = db()->query('SELECT setting_key, setting_value FROM app_settings')->fetchAll();
+    foreach ($rows as $row) {
+        if (array_key_exists($row['setting_key'], $settings)) {
+            $settings[$row['setting_key']] = (string)$row['setting_value'];
+        }
+    }
+    return $settings;
+}
+
+function handle_app_settings(): void
+{
+    json_response(['ok' => true, 'settings' => app_settings()]);
+}
+
+function handle_app_settings_save(): void
+{
+    require_admin();
+    $data = input();
+    $settings = app_settings();
+    $name = trim((string)($data['business_name'] ?? $settings['business_name']));
+    $subtitle = trim((string)($data['business_subtitle'] ?? $settings['business_subtitle']));
+    $colors = [
+        'primary_color' => normalize_hex_color((string)($data['primary_color'] ?? $settings['primary_color']), $settings['primary_color']),
+        'accent_color' => normalize_hex_color((string)($data['accent_color'] ?? $settings['accent_color']), $settings['accent_color']),
+        'background_color' => normalize_hex_color((string)($data['background_color'] ?? $settings['background_color']), $settings['background_color']),
+    ];
+
+    if ($name === '' || strlen($name) > 80 || strlen($subtitle) > 80) {
+        json_response(['ok' => false, 'message' => 'Nome attività non valido.'], 422);
+    }
+
+    $logoPath = $settings['logo_path'];
+    if (!empty($_FILES['logo']['tmp_name'])) {
+        $logoPath = save_app_logo($_FILES['logo']);
+    }
+    if ($logoPath !== '') {
+        generate_app_icon($logoPath, $colors['primary_color']);
+    }
+
+    $values = [
+        'business_name' => $name,
+        'business_subtitle' => $subtitle,
+        'logo_path' => $logoPath,
+        'primary_color' => $colors['primary_color'],
+        'accent_color' => $colors['accent_color'],
+        'background_color' => $colors['background_color'],
+    ];
+    $stmt = db()->prepare('INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+    foreach ($values as $key => $value) {
+        $stmt->execute([$key, $value]);
+    }
+
+    json_response(['ok' => true, 'settings' => app_settings()]);
+}
+
+function normalize_hex_color(string $value, string $fallback): string
+{
+    $value = trim($value);
+    return preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? strtolower($value) : $fallback;
+}
+
+function save_app_logo(array $file): string
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        json_response(['ok' => false, 'message' => 'Caricamento logo non riuscito.'], 422);
+    }
+    if (($file['size'] ?? 0) > 2 * 1024 * 1024) {
+        json_response(['ok' => false, 'message' => 'Logo troppo grande. Massimo 2 MB.'], 422);
+    }
+    $mime = mime_content_type((string)$file['tmp_name']) ?: '';
+    $extensions = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+    if (!isset($extensions[$mime])) {
+        json_response(['ok' => false, 'message' => 'Formato logo non supportato. Usa PNG, JPG o WEBP.'], 422);
+    }
+    $dir = __DIR__ . '/uploads/app';
+    if (!is_dir($dir)) {
+        mkdir($dir, 0775, true);
+    }
+    $path = 'uploads/app/logo-' . time() . '.' . $extensions[$mime];
+    if (!move_uploaded_file((string)$file['tmp_name'], __DIR__ . '/' . $path)) {
+        json_response(['ok' => false, 'message' => 'Impossibile salvare il logo.'], 500);
+    }
+    return $path;
+}
+
+function generate_app_icon(string $logoPath, string $backgroundColor): void
+{
+    $absoluteLogo = __DIR__ . '/' . $logoPath;
+    $data = file_get_contents($absoluteLogo);
+    if ($data === false) {
+        return;
+    }
+    $mime = mime_content_type($absoluteLogo) ?: 'image/png';
+    $dataUri = 'data:' . $mime . ';base64,' . base64_encode($data);
+    $safeBg = htmlspecialchars($backgroundColor, ENT_QUOTES, 'UTF-8');
+    $safeImage = htmlspecialchars($dataUri, ENT_QUOTES, 'UTF-8');
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+        . '<rect width="512" height="512" rx="112" fill="' . $safeBg . '"/>'
+        . '<image href="' . $safeImage . '" x="96" y="96" width="320" height="320" preserveAspectRatio="xMidYMid meet"/>'
+        . '</svg>';
+    file_put_contents(__DIR__ . '/assets/app-icon.svg', $svg);
 }
 
 function handle_notifications(): void

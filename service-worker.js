@@ -1,11 +1,11 @@
-const CACHE_NAME = 'barber-booking-v20260513-14';
+const CACHE_NAME = 'barber-booking-v20260513-15';
 const APP_SHELL = [
   './',
   './index.php',
   './manifest.webmanifest',
-  './assets/styles.css?v=20260513-14',
-  './assets/booking-app.js?v=20260513-14',
-  './assets/icon.svg'
+  './assets/styles.css?v=20260513-15',
+  './assets/booking-app.js?v=20260513-15',
+  './assets/app-icon.svg'
 ];
 
 self.addEventListener('install', event => {
@@ -75,8 +75,8 @@ async function showLatestNotification(event) {
   const title = notification?.title || 'Nuova notifica';
   const options = {
     body: notification?.body || 'Apri Barber Booking per vedere gli aggiornamenti.',
-    icon: 'assets/icon.svg',
-    badge: 'assets/icon.svg',
+    icon: 'assets/app-icon.svg',
+    badge: 'assets/app-icon.svg',
     tag: notification?.id ? `barber-notification-${notification.id}` : 'barber-notification',
     data: { url: notification?.url || './' }
   };

@@ -16,6 +16,7 @@ Webapp mobile-first in PHP, JavaScript/AJAX e MySQL per gestire prenotazioni di 
 - Profilo modificabile per clienti e admin, inclusa la password.
 - Tema light/dark, layout responsive e palette blu/rosso/bianco/grigi.
 - Supporto PWA installabile con manifest, service worker e notifiche dispositivo mentre l'app è aperta o in background.
+- Settings admin per personalizzare logo, nome attività, favicon/app icon e almeno tre colori app.
 
 ## Installazione su Plesk
 
@@ -36,6 +37,7 @@ Le modifiche database sono versionate nella cartella `migrations/` e vanno appli
 4. `004_create_closure_settings.sql` aggiunge chiusure settimanali e giorni speciali.
 5. `005_create_notifications.sql` aggiunge le notifiche interne per admin e clienti.
 6. `006_create_push_subscriptions.sql` salva le sottoscrizioni Web Push dei dispositivi.
+7. `007_create_app_settings.sql` aggiunge logo, nome attività e palette colori configurabili dall'admin.
 
 Da terminale, se Plesk consente l'accesso SSH, puoi eseguire:
 
