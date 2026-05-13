@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Barber Booking">
+  <rect width="512" height="512" rx="112" fill="#335eac"/>
+  <circle cx="382" cy="130" r="62" fill="#ffffff" opacity=".16"/>
+  <path d="M124 372 372 124" fill="none" stroke="#ffffff" stroke-width="42" stroke-linecap="round"/>
+  <path d="m162 164 186 186" fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" opacity=".9"/>
+  <circle cx="150" cy="148" r="48" fill="#f42539" stroke="#ffffff" stroke-width="22"/>
+  <circle cx="362" cy="364" r="48" fill="#f42539" stroke="#ffffff" stroke-width="22"/>
+</svg>
