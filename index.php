@@ -12,7 +12,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-5">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-6">
 </head>
 <body>
     <div class="app-shell">
@@ -26,6 +26,9 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
             <div class="top-actions">
                 <button class="icon-btn" id="themeToggle" type="button" aria-label="Cambia tema">
                     <svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+                </button>
+                <button class="icon-btn hidden" id="profileHeaderBtn" type="button" aria-label="Profilo">
+                    <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg>
                 </button>
                 <button class="ghost hidden" id="logoutBtn" type="button">Esci</button>
             </div>
@@ -81,7 +84,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                     <button class="nav-item admin-only" data-view="services" type="button"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Zm0 5 8 4 8-4M4 17l8 4 8-4"/></svg><span>Servizi</span></button>
                     <button class="nav-item admin-only" data-view="clients" type="button"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0m8 0a4 4 0 1 1-8 0m8 0h1a4 4 0 0 1 4 4v1M8 11H7a4 4 0 0 0-4 4v1m4 4h10a2 2 0 0 0 2-2 6 6 0 0 0-14 0 2 2 0 0 0 2 2Z"/></svg><span>Clienti</span></button>
                     <button class="nav-item admin-only" data-view="closures" type="button"><svg viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M7 14h4m-4 4h7M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg><span>Chiusure</span></button>
-                    <button class="nav-item" data-view="profile" type="button"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg><span>Profilo</span></button>
                 </nav>
 
                 <section class="view" id="dashboardView">
@@ -121,6 +123,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
                 <section class="view hidden" id="clientsView">
                     <div class="section-head"><div><span class="eyebrow">Admin</span><h1>Clienti</h1></div></div>
+                    <div class="panel form-grid search-panel"><label>Cerca cliente<input id="clientSearch" type="search" placeholder="Nome o cognome"></label></div>
                     <div id="clientList" class="list"></div>
                 </section>
 
@@ -195,6 +198,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-5" defer></script>
+    <script src="assets/booking-app.js?v=20260513-6" defer></script>
 </body>
 </html>

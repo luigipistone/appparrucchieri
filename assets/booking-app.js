@@ -77,6 +77,7 @@ function bindEvents() {
   $('#forgotForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('forgot_password', formData(event.currentTarget)); toast(res.message); if (res.reset_url_demo) console.info('Reset URL demo:', res.reset_url_demo); });
   $('#resetForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('reset_password', formData(event.currentTarget)); toast(res.message); event.currentTarget.classList.add('hidden'); switchAuth('login'); });
   $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; renderSession(); });
+  $('#profileHeaderBtn').addEventListener('click', () => showView('profile'));
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; state.day = `${state.month}-01`; await refreshCalendar(); });
   $('#prevMonth').addEventListener('click', () => shiftCalendar(-1));
@@ -92,6 +93,7 @@ function bindEvents() {
   $('#addSpecialClosureBtn').addEventListener('click', addSpecialClosure);
   $('#appointmentEditForm').elements.service_id.addEventListener('change', loadAppointmentEditAvailability);
   $('#appointmentEditForm').elements.date.addEventListener('change', renderAppointmentEditTimes);
+  $('#clientSearch').addEventListener('input', renderClients);
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
@@ -117,6 +119,7 @@ function renderSession() {
   $('#authView').classList.toggle('hidden', logged);
   $('#appView').classList.toggle('hidden', !logged);
   $('#logoutBtn').classList.toggle('hidden', !logged);
+  $('#profileHeaderBtn').classList.toggle('hidden', !logged);
   $$('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin()));
   $$('.client-only').forEach(el => el.classList.toggle('hidden', isAdmin()));
   if (!isAdmin()) state.bookingStep = 'services';
@@ -403,7 +406,11 @@ async function saveService(event) {
 
 function renderClients() {
   if (!isAdmin()) return;
-  $('#clientList').innerHTML = state.users.map(u => `<article class="list-item"><div><h3>${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)}</h3><p>${escapeHtml(u.role)} · ${escapeHtml(u.email)} · ${escapeHtml(u.phone)}</p></div><div class="actions"><button class="ghost" data-edit-user="${u.id}" type="button">Modifica</button></div></article>`).join('');
+  const query = ($('#clientSearch')?.value || '').trim().toLowerCase();
+  const users = state.users.filter(u => `${u.first_name} ${u.last_name}`.toLowerCase().includes(query));
+  $('#clientList').innerHTML = users.length
+    ? users.map(u => `<article class="list-item"><div><h3>${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)}</h3><p>${escapeHtml(u.role)} · ${escapeHtml(u.email)} · ${escapeHtml(u.phone)}</p></div><div class="actions"><button class="ghost" data-edit-user="${u.id}" type="button">Modifica</button></div></article>`).join('')
+    : '<div class="panel form-grid"><p class="hint">Nessun cliente trovato.</p></div>';
   $$('[data-edit-user]').forEach(btn => btn.addEventListener('click', () => {
     const user = state.users.find(item => Number(item.id) === Number(btn.dataset.editUser));
     if (user) openUserDialog(user);
