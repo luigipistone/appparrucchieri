@@ -1,4 +1,6 @@
-CREATE DATABASE IF NOT EXISTS portale_parrucchieri CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- Migration: 002_create_core_tables
+-- Crea le tabelle principali dell'applicazione.
+
 USE portale_parrucchieri;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -52,18 +54,5 @@ CREATE TABLE IF NOT EXISTS password_resets (
     CONSTRAINT fk_password_resets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO users (role, first_name, last_name, email, phone, password_hash)
-VALUES ('admin', 'Admin', 'Salone', 'admin@salone.local', '+390000000000', '$2y$12$xCP8gSZz6cQv82s0MWHoc.WgwJKIe9w.dFNQ060b2Qs6bCLWVYnC2')
-ON DUPLICATE KEY UPDATE role = VALUES(role);
-
-INSERT INTO services (name, description, price, duration_minutes, active)
-SELECT 'Taglio uomo', 'Taglio classico o moderno con rifinitura finale.', 18.00, 30, 1
-WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'Taglio uomo');
-
-INSERT INTO services (name, description, price, duration_minutes, active)
-SELECT 'Taglio + barba', 'Servizio completo capelli e barba con panni caldi.', 28.00, 60, 1
-WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'Taglio + barba');
-
-INSERT INTO services (name, description, price, duration_minutes, active)
-SELECT 'Barba', 'Regolazione, rasatura e definizione barba.', 12.00, 30, 1
-WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'Barba');
+INSERT IGNORE INTO schema_migrations (version, description)
+VALUES ('002', 'create core application tables');
