@@ -1,4 +1,8 @@
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
 const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null };
+=======
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), availability: {} };
+>>>>>>> main
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -78,17 +82,26 @@ function bindEvents() {
   $('#resetForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('reset_password', formData(event.currentTarget)); toast(res.message); event.currentTarget.classList.add('hidden'); switchAuth('login'); });
   $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; renderSession(); });
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; state.day = `${state.month}-01`; await refreshCalendar(); });
   $('#prevMonth').addEventListener('click', () => shiftCalendar(-1));
   $('#nextMonth').addEventListener('click', () => shiftCalendar(1));
   $('#serviceNextBtn').addEventListener('click', goToCalendarStep);
   $('#backToCalendarBtn').addEventListener('click', () => setBookingStep('calendar'));
   $('#confirmBookingBtn').addEventListener('click', confirmPendingBooking);
+=======
+  $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; await refreshCalendar(); });
+  $('#prevMonth').addEventListener('click', () => shiftMonth(-1));
+  $('#nextMonth').addEventListener('click', () => shiftMonth(1));
+>>>>>>> main
   $('#newServiceBtn').addEventListener('click', () => openServiceDialog());
   $('#serviceForm').addEventListener('submit', saveService);
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
+=======
+>>>>>>> main
 }
 
 function submitAuth(action) {
@@ -112,10 +125,15 @@ function renderSession() {
   $('#appView').classList.toggle('hidden', !logged);
   $('#logoutBtn').classList.toggle('hidden', !logged);
   $$('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin()));
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   $$('.client-only').forEach(el => el.classList.toggle('hidden', isAdmin()));
   if (!isAdmin()) state.bookingStep = 'services';
   $('#roleLabel').textContent = isAdmin() ? 'Area admin' : 'Area cliente';
   renderBookingStep();
+=======
+  $('#roleLabel').textContent = isAdmin() ? 'Area admin' : 'Area cliente';
+  $('#dashboardTitle').textContent = isAdmin() ? 'Calendario appuntamenti' : 'Scegli il servizio';
+>>>>>>> main
 }
 
 function isAdmin() { return state.user?.role === 'admin'; }
@@ -124,7 +142,11 @@ async function refreshAll() {
   const [services, appointments] = await Promise.all([api('services'), api(`appointments&month=${state.month}`)]);
   state.services = services.services;
   state.appointments = appointments.appointments;
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   state.selectedService = state.selectedService || null;
+=======
+  state.selectedService = state.selectedService || state.services[0]?.id || null;
+>>>>>>> main
   if (isAdmin()) state.users = (await api('users')).users;
   await refreshCalendar();
   renderServices();
@@ -132,7 +154,10 @@ async function refreshAll() {
   renderAdminServices();
   renderClients();
   renderProfile();
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   renderBookingStep();
+=======
+>>>>>>> main
 }
 
 async function refreshCalendar() {
@@ -153,13 +178,18 @@ async function refreshCalendar() {
 
 function renderServices() {
   const wrap = $('#serviceCards');
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   wrap.classList.toggle('hidden', isAdmin() || state.bookingStep !== 'services');
+=======
+  wrap.classList.toggle('hidden', isAdmin());
+>>>>>>> main
   wrap.innerHTML = state.services.map(service => `
     <button class="service-card ${Number(state.selectedService) === Number(service.id) ? 'active' : ''}" data-service="${service.id}" type="button">
       ${service.image_path ? `<img src="${escapeHtml(service.image_path)}" alt="">` : ''}
       <h3>${escapeHtml(service.name)}</h3><p>${escapeHtml(service.description || 'Servizio professionale')}</p>
       <span class="price">€ ${Number(service.price).toFixed(2)} · ${service.duration_minutes} min</span>
     </button>`).join('');
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   $$('[data-service]', wrap).forEach(btn => btn.addEventListener('click', () => {
     state.selectedService = btn.dataset.service;
     renderServices();
@@ -235,6 +265,15 @@ function renderCalendar() {
   const date = new Date(`${state.month}-01T12:00:00`);
   $('#calendarTitle').textContent = date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
   $('.weekdays').classList.remove('hidden');
+=======
+  $$('[data-service]', wrap).forEach(btn => btn.addEventListener('click', async () => { state.selectedService = btn.dataset.service; renderServices(); await refreshCalendar(); }));
+}
+
+function renderCalendar() {
+  const grid = $('#calendarGrid');
+  const date = new Date(`${state.month}-01T12:00:00`);
+  $('#calendarTitle').textContent = date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+>>>>>>> main
   const firstWeekday = (date.getDay() || 7) - 1;
   const first = new Date(date); first.setDate(date.getDate() - firstWeekday);
   const cells = [];
@@ -252,11 +291,15 @@ function renderCalendar() {
       ${isAdmin() && appts.length ? `<span class="badge">${appts.length} app.</span>` : ''}
     </button>`);
   }
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
   grid.className = 'calendar-grid';
+=======
+>>>>>>> main
   grid.innerHTML = cells.join('');
   $$('.day', grid).forEach(btn => btn.addEventListener('click', () => openDay(btn.dataset.day)));
 }
 
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
 function renderDayCalendar() {
   const grid = $('#calendarGrid');
   const day = new Date(`${state.day}T12:00:00`);
@@ -276,6 +319,8 @@ function renderDayCalendar() {
   grid.innerHTML = `<div class="day-focus"><strong>${day.getDate()}</strong><span>${slots.length} posti disponibili</span></div><div class="slot-list">${slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>'}</div>`;
   $$('[data-book]', grid).forEach(btn => btn.addEventListener('click', () => chooseBookingTime(iso, btn.dataset.book)));
 }
+=======
+>>>>>>> main
 function openDay(day) {
   const dialog = $('#slotDialog');
   $('#slotDialogTitle').textContent = new Date(`${day}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -287,7 +332,11 @@ function openDay(day) {
   } else {
     const slots = state.availability[day]?.slots || [];
     list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>';
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
     $$('[data-book]', list).forEach(btn => btn.addEventListener('click', () => { dialog.close(); chooseBookingTime(day, btn.dataset.book); }));
+=======
+    $$('[data-book]', list).forEach(btn => btn.addEventListener('click', async () => { await saveAppointment({ service_id: state.selectedService, date: day, time: btn.dataset.book }); dialog.close(); }));
+>>>>>>> main
   }
   dialog.showModal();
 }
@@ -377,6 +426,7 @@ function showView(view) {
   $(`#${view}View`).classList.remove('hidden');
 }
 
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
 function shiftCalendar(delta) {
   if (isMobileCalendar()) {
     const date = new Date(`${state.day}T12:00:00`);
@@ -389,6 +439,8 @@ function shiftCalendar(delta) {
   shiftMonth(delta);
 }
 
+=======
+>>>>>>> main
 function shiftMonth(delta) {
   const date = new Date(`${state.month}-01T12:00:00`);
   date.setMonth(date.getMonth() + delta);
@@ -396,8 +448,11 @@ function shiftMonth(delta) {
   refreshCalendar();
 }
 
+<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
 function isMobileCalendar() { return window.matchMedia('(max-width: 760px)').matches; }
 
+=======
+>>>>>>> main
 function localIso(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
