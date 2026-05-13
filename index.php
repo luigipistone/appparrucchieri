@@ -12,11 +12,8 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
     <link rel="stylesheet" href="assets/styles.css?v=20260513-2">
-=======
-    <link rel="stylesheet" href="assets/styles.css?v=20260513">
->>>>>>> main
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-2">
 </head>
 <body>
     <div class="app-shell">
@@ -80,19 +77,11 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
             <section id="appView" class="hidden">
                 <nav class="mobile-nav" aria-label="Navigazione principale">
-<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
                     <button class="nav-item active" data-view="dashboard" type="button"><svg viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg><span>Calendario</span></button>
                     <button class="nav-item" data-view="appointments" type="button"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg><span>Appunt.</span></button>
                     <button class="nav-item admin-only" data-view="services" type="button"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Zm0 5 8 4 8-4M4 17l8 4 8-4"/></svg><span>Servizi</span></button>
                     <button class="nav-item admin-only" data-view="clients" type="button"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0m8 0a4 4 0 1 1-8 0m8 0h1a4 4 0 0 1 4 4v1M8 11H7a4 4 0 0 0-4 4v1m4 4h10a2 2 0 0 0 2-2 6 6 0 0 0-14 0 2 2 0 0 0 2 2Z"/></svg><span>Clienti</span></button>
                     <button class="nav-item" data-view="profile" type="button"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg><span>Profilo</span></button>
-=======
-                    <button class="nav-item active" data-view="dashboard" type="button"><span>Calendario</span></button>
-                    <button class="nav-item" data-view="appointments" type="button"><span>Appuntamenti</span></button>
-                    <button class="nav-item admin-only" data-view="services" type="button"><span>Servizi</span></button>
-                    <button class="nav-item admin-only" data-view="clients" type="button"><span>Clienti</span></button>
-                    <button class="nav-item" data-view="profile" type="button"><span>Profilo</span></button>
->>>>>>> main
                 </nav>
 
                 <section class="view" id="dashboardView">
@@ -100,7 +89,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                         <div><span class="eyebrow" id="roleLabel">Area cliente</span><h1 id="dashboardTitle">Scegli il servizio</h1></div>
                         <input type="month" id="monthPicker">
                     </div>
-<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
                     <div id="bookingSteps" class="booking-steps client-only">
                         <span data-step-dot="services">1. Servizio</span>
                         <span data-step-dot="calendar">2. Disponibilità</span>
@@ -109,23 +97,16 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                     <div id="serviceCards" class="cards"></div>
                     <div id="serviceStepActions" class="step-actions client-only"><button class="primary" id="serviceNextBtn" type="button">Prosegui</button></div>
                     <div class="calendar-card panel" id="calendarCard">
-=======
-                    <div id="serviceCards" class="cards"></div>
-                    <div class="calendar-card panel">
->>>>>>> main
                         <div class="calendar-head"><button class="ghost" id="prevMonth" type="button">←</button><h2 id="calendarTitle"></h2><button class="ghost" id="nextMonth" type="button">→</button></div>
                         <div class="weekdays"><span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span></div>
                         <div id="calendarGrid" class="calendar-grid"></div>
                     </div>
-<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
                     <div id="confirmStep" class="panel confirm-card client-only hidden">
                         <span class="eyebrow">Ultimo step</span>
                         <h2>Conferma prenotazione</h2>
                         <p id="bookingSummary" class="hint"></p>
                         <div class="actions"><button class="ghost" id="backToCalendarBtn" type="button">Indietro</button><button class="primary" id="confirmBookingBtn" type="button">Conferma prenotazione</button></div>
                     </div>
-=======
->>>>>>> main
                 </section>
 
                 <section class="view hidden" id="appointmentsView">
@@ -175,10 +156,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-<<<<<<< codex/create-webapp-for-men-s-barber-shop-cup2bb
+    <script src="assets/booking-app.js?v=20260513-3" defer></script>
     <script src="assets/app.js?v=20260513-2" defer></script>
-=======
-    <script src="assets/app.js?v=20260513" defer></script>
->>>>>>> main
 </body>
 </html>
