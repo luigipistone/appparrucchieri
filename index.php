@@ -7,11 +7,12 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#335eac">
+    <meta name="csrf-token" content="<?= csrf_token() ?>">
     <title><?= APP_NAME ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513">
 </head>
 <body>
     <div class="app-shell">
@@ -37,7 +38,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                     <h1>Il salone da uomo sempre in tasca.</h1>
                     <p>Scegli servizio, giorno e orario in pochi tocchi. L'app è pensata mobile-first, semplice e veloce anche per l'amministratore.</p>
                     <div class="hero-points">
-                        <span>Calendario mensile</span><span>Slot ogni 30 min</span><span>WhatsApp admin</span>
+                        <span>Calendario mensile</span><span>Posti ogni 30 min</span><span>WhatsApp admin</span>
                     </div>
                 </div>
                 <div class="panel auth-panel">
@@ -142,6 +143,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/app.js" defer></script>
+    <script src="assets/app.js?v=20260513" defer></script>
 </body>
 </html>

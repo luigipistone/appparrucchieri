@@ -1,4 +1,4 @@
-const state = { csrf: '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), availability: {} };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), availability: {} };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -90,11 +90,15 @@ function bindEvents() {
 function submitAuth(action) {
   return async event => {
     event.preventDefault();
-    const res = await api(action, formData(event.currentTarget));
-    state.user = res.user;
-    toast('Accesso effettuato.');
-    renderSession();
-    await refreshAll();
+    try {
+      const res = await api(action, formData(event.currentTarget));
+      state.user = res.user;
+      toast(action === 'login' ? 'Accesso effettuato.' : 'Account creato.');
+      renderSession();
+      await refreshAll();
+    } catch (error) {
+      toast(error.message);
+    }
   };
 }
 
@@ -127,7 +131,12 @@ async function refreshAll() {
 async function refreshCalendar() {
   $('#monthPicker').value = state.month;
   if (!isAdmin() && state.selectedService) {
-    state.availability = (await api(`availability&service_id=${state.selectedService}&month=${state.month}`)).days;
+    const [availability, appointments] = await Promise.all([
+      api(`availability&service_id=${state.selectedService}&month=${state.month}`),
+      api(`appointments&month=${state.month}`)
+    ]);
+    state.availability = availability.days;
+    state.appointments = appointments.appointments;
   } else {
     state.appointments = (await api(`appointments&month=${state.month}`)).appointments;
   }
@@ -164,7 +173,7 @@ function renderCalendar() {
     cells.push(`<button class="day ${inMonth ? '' : 'muted'} ${available ? 'available' : ''} ${today ? 'today' : ''}" data-day="${iso}" type="button">
       <strong>${day.getDate()}</strong>
       ${isAdmin() ? appts.slice(0, 3).map(a => `<span class="appt">${a.starts_at.slice(11, 16)} ${escapeHtml(a.first_name)}</span>`).join('') : ''}
-      ${!isAdmin() && inMonth ? `<span class="badge">${available} slot</span>` : ''}
+      ${!isAdmin() && inMonth ? `<span class="badge">${available} posti</span>` : ''}
       ${isAdmin() && appts.length ? `<span class="badge">${appts.length} app.</span>` : ''}
     </button>`);
   }
@@ -182,7 +191,7 @@ function openDay(day) {
     wireAppointmentActions(list);
   } else {
     const slots = state.availability[day]?.slots || [];
-    list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessuno slot disponibile.</p>';
+    list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>';
     $$('[data-book]', list).forEach(btn => btn.addEventListener('click', async () => { await saveAppointment({ service_id: state.selectedService, date: day, time: btn.dataset.book }); dialog.close(); }));
   }
   dialog.showModal();

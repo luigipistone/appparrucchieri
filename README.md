@@ -7,7 +7,7 @@ Webapp mobile-first in PHP, JavaScript/AJAX e MySQL per gestire prenotazioni di 
 - Registrazione e accesso cliente con nome, cognome, email, telefono e password.
 - Ruoli `admin` e `cliente`.
 - Recupero password tramite email o telefono con token temporaneo.
-- Dashboard cliente con elenco servizi, calendario mensile e slot disponibili ogni 30 minuti.
+- Dashboard cliente con elenco servizi, calendario mensile e posti disponibili ogni 30 minuti.
 - Prenotazione automatica confermata, modifica ed eliminazione appuntamenti.
 - Dashboard admin con calendario mensile di tutti gli appuntamenti.
 - Gestione appuntamenti, apertura WhatsApp verso il cliente, gestione servizi e clienti.
@@ -48,4 +48,4 @@ Cambiare subito email, telefono e password dall'area profilo admin dopo il primo
 
 ## Configurazione orari
 
-Gli orari di apertura sono definiti in `includes/config.php` nella costante `OPENING_HOURS`. Gli slot sono calcolati ogni 30 minuti e rispettano la durata del servizio scelto.
+Gli orari di apertura sono definiti in `includes/config.php` nella costante `OPENING_HOURS`. I posti sono calcolati ogni 30 minuti e rispettano la durata del servizio scelto.
