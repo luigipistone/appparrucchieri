@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {} };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {} };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -94,6 +94,16 @@ function bindEvents() {
   $('#appointmentEditForm').elements.service_id.addEventListener('change', loadAppointmentEditAvailability);
   $('#appointmentEditForm').elements.date.addEventListener('change', renderAppointmentEditTimes);
   $('#clientSearch').addEventListener('input', renderClients);
+  $('#appointmentDateFilter').addEventListener('change', async event => {
+    state.appointmentDateFilter = event.target.value;
+    if (state.appointmentDateFilter && state.appointmentDateFilter.slice(0, 7) !== state.month) {
+      state.month = state.appointmentDateFilter.slice(0, 7);
+      await refreshCalendar();
+    } else {
+      renderAppointments();
+    }
+  });
+  $('#clearAppointmentFilterBtn').addEventListener('click', () => { state.appointmentDateFilter = ''; $('#appointmentDateFilter').value = ''; renderAppointments(); });
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
@@ -291,24 +301,32 @@ function renderDayCalendar() {
   $$('[data-book]', grid).forEach(btn => btn.addEventListener('click', () => chooseBookingTime(iso, btn.dataset.book)));
 }
 function openDay(day) {
+  if (isAdmin()) {
+    showAppointmentsForDay(day);
+    return;
+  }
   const dialog = $('#slotDialog');
   $('#slotDialogTitle').textContent = new Date(`${day}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
   const list = $('#slotList');
-  if (isAdmin()) {
-    const appts = state.appointments.filter(a => a.starts_at.slice(0, 10) === day);
-    list.innerHTML = appts.length ? appts.map(appointmentRow).join('') : '<p class="hint">Nessun appuntamento in questa data.</p>';
-    wireAppointmentActions(list);
-  } else {
-    const slots = state.availability[day]?.slots || [];
-    list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>';
-    $$('[data-book]', list).forEach(btn => btn.addEventListener('click', () => { dialog.close(); chooseBookingTime(day, btn.dataset.book); }));
-  }
+  const slots = state.availability[day]?.slots || [];
+  list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>';
+  $$('[data-book]', list).forEach(btn => btn.addEventListener('click', () => { dialog.close(); chooseBookingTime(day, btn.dataset.book); }));
   dialog.showModal();
 }
 
+function showAppointmentsForDay(day) {
+  state.appointmentDateFilter = day;
+  $('#appointmentDateFilter').value = day;
+  showView('appointments');
+  renderAppointments();
+}
+
 function renderAppointments() {
-  const mine = isAdmin() ? state.appointments : state.appointments.filter(a => Number(a.user_id) === Number(state.user.id));
-  $('#appointmentList').innerHTML = mine.length ? mine.map(appointmentRow).join('') : '<div class="panel form-grid"><p class="hint">Nessun appuntamento nel mese selezionato.</p></div>';
+  const base = isAdmin() ? state.appointments : state.appointments.filter(a => Number(a.user_id) === Number(state.user.id));
+  const filtered = state.appointmentDateFilter ? base.filter(a => a.starts_at.slice(0, 10) === state.appointmentDateFilter) : base;
+  const empty = state.appointmentDateFilter ? `Nessun appuntamento per ${formatDate(state.appointmentDateFilter)}.` : 'Nessun appuntamento nel mese selezionato.';
+  $('#appointmentDateFilter').value = state.appointmentDateFilter;
+  $('#appointmentList').innerHTML = filtered.length ? filtered.map(appointmentRow).join('') : `<div class="panel form-grid"><p class="hint">${empty}</p></div>`;
   wireAppointmentActions($('#appointmentList'));
 }
 

@@ -12,7 +12,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-6">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-7">
 </head>
 <body>
     <div class="app-shell">
@@ -113,6 +113,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
                 <section class="view hidden" id="appointmentsView">
                     <div class="section-head"><div><span class="eyebrow">Agenda</span><h1>I tuoi appuntamenti</h1></div></div>
+                    <div class="panel form-grid appointment-filter"><div class="two-cols"><label>Filtra per data<input id="appointmentDateFilter" type="date"></label><div class="filter-actions"><button class="ghost" id="clearAppointmentFilterBtn" type="button">Mostra tutti</button></div></div></div>
                     <div id="appointmentList" class="list"></div>
                 </section>
 
@@ -198,6 +199,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-6" defer></script>
+    <script src="assets/booking-app.js?v=20260513-7" defer></script>
 </body>
 </html>
