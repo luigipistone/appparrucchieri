@@ -35,6 +35,7 @@ Le modifiche database sono versionate nella cartella `migrations/` e vanno appli
 3. `003_seed_initial_data.sql` inserisce admin iniziale e servizi di esempio.
 4. `004_create_closure_settings.sql` aggiunge chiusure settimanali e giorni speciali.
 5. `005_create_notifications.sql` aggiunge le notifiche interne per admin e clienti.
+6. `006_create_push_subscriptions.sql` salva le sottoscrizioni Web Push dei dispositivi.
 
 Da terminale, se Plesk consente l'accesso SSH, puoi eseguire:
 
@@ -47,9 +48,15 @@ Se usi phpMyAdmin o il pannello Plesk senza SSH, importa i file `.sql` uno alla 
 
 ## PWA e notifiche dispositivo
 
-L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: quando l'app è aperta o resta attiva in background, il frontend controlla periodicamente le nuove notifiche interne e le mostra tramite le notifiche del browser.
+L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: il browser salva una sottoscrizione Push API collegata all'utente e il server invia un Web Push VAPID ogni volta che viene creata una notifica interna.
 
-Per notifiche push recapitate anche ad app completamente chiusa serve un passaggio ulteriore: salvare le sottoscrizioni Push API degli utenti e configurare un servizio Web Push con chiavi VAPID lato server.
+Per abilitare l'invio Web Push genera le chiavi VAPID e copia i valori in `includes/config.php` nelle costanti `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`:
+
+```bash
+php scripts/generate_vapid_keys.php
+```
+
+Le notifiche push richiedono HTTPS in produzione; in locale i browser di solito consentono `localhost`.
 
 ## Credenziali admin iniziali
 

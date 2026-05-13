@@ -30,6 +30,9 @@ try {
         'appointment_delete' => handle_appointment_delete(),
         'notifications' => handle_notifications(),
         'notifications_read' => handle_notifications_read(),
+        'push_public_key' => handle_push_public_key(),
+        'push_subscribe' => handle_push_subscribe(),
+        'push_unsubscribe' => handle_push_unsubscribe(),
         'profile_save' => handle_profile_save(),
         'users' => handle_users(),
         'user_save' => handle_user_save(),
@@ -73,6 +76,140 @@ function create_notification(int $userId, string $type, string $title, string $b
 {
     $stmt = db()->prepare('INSERT INTO notifications (user_id, appointment_id, type, title, body) VALUES (?,?,?,?,?)');
     $stmt->execute([$userId, $appointmentId, $type, $title, $body]);
+    send_web_push_to_user($userId);
+}
+
+function handle_push_public_key(): void
+{
+    require_auth();
+    json_response(['ok' => true, 'publicKey' => VAPID_PUBLIC_KEY]);
+}
+
+function handle_push_subscribe(): void
+{
+    $user = require_auth();
+    $data = input();
+    $endpoint = trim((string)($data['endpoint'] ?? ''));
+    $keys = is_array($data['keys'] ?? null) ? $data['keys'] : [];
+    $p256dh = trim((string)($keys['p256dh'] ?? ''));
+    $auth = trim((string)($keys['auth'] ?? ''));
+    if ($endpoint === '' || $p256dh === '' || $auth === '') {
+        json_response(['ok' => false, 'message' => 'Sottoscrizione push non valida.'], 422);
+    }
+
+    $stmt = db()->prepare("INSERT INTO push_subscriptions (user_id, endpoint, endpoint_hash, p256dh, auth, user_agent)
+        VALUES (?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), endpoint=VALUES(endpoint), p256dh=VALUES(p256dh), auth=VALUES(auth), user_agent=VALUES(user_agent), updated_at=NOW()");
+    $stmt->execute([(int)$user['id'], $endpoint, hash('sha256', $endpoint), $p256dh, $auth, substr(request_header('User-Agent'), 0, 255)]);
+    json_response(['ok' => true]);
+}
+
+function handle_push_unsubscribe(): void
+{
+    $user = require_auth();
+    $endpoint = trim((string)(input()['endpoint'] ?? ''));
+    if ($endpoint !== '') {
+        db()->prepare('DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND user_id = ?')->execute([hash('sha256', $endpoint), (int)$user['id']]);
+    }
+    json_response(['ok' => true]);
+}
+
+function send_web_push_to_user(int $userId): void
+{
+    if (VAPID_PUBLIC_KEY === '' || VAPID_PRIVATE_KEY === '') {
+        return;
+    }
+    try {
+        $stmt = db()->prepare('SELECT id, endpoint FROM push_subscriptions WHERE user_id = ?');
+        $stmt->execute([$userId]);
+        foreach ($stmt->fetchAll() as $subscription) {
+            $status = send_web_push((string)$subscription['endpoint']);
+            if (in_array($status, [404, 410], true)) {
+                db()->prepare('DELETE FROM push_subscriptions WHERE id = ?')->execute([(int)$subscription['id']]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Web Push error: ' . $e->getMessage());
+    }
+}
+
+function send_web_push(string $endpoint): int
+{
+    $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
+    $jwt = vapid_jwt($audience);
+    $headers = [
+        'TTL: 60',
+        'Content-Length: 0',
+        'Authorization: vapid t=' . $jwt . ', k=' . VAPID_PUBLIC_KEY,
+        'Crypto-Key: p256ecdsa=' . VAPID_PUBLIC_KEY,
+    ];
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 3,
+            CURLOPT_HEADER => false,
+        ]);
+        curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        return $status;
+    }
+
+    $context = stream_context_create(['http' => [
+        'method' => 'POST',
+        'header' => implode("
+", $headers),
+        'timeout' => 3,
+        'ignore_errors' => true,
+    ]]);
+    @file_get_contents($endpoint, false, $context);
+    $statusLine = $http_response_header[0] ?? '';
+    return preg_match('/\s(\d{3})\s/', $statusLine, $matches) ? (int)$matches[1] : 0;
+}
+
+function vapid_jwt(string $audience): string
+{
+    $header = base64url_encode(json_encode(['typ' => 'JWT', 'alg' => 'ES256'], JSON_UNESCAPED_SLASHES));
+    $payload = base64url_encode(json_encode([
+        'aud' => $audience,
+        'exp' => time() + 3600,
+        'sub' => VAPID_SUBJECT,
+    ], JSON_UNESCAPED_SLASHES));
+    $data = $header . '.' . $payload;
+    $privateKey = openssl_pkey_get_private(VAPID_PRIVATE_KEY);
+    if (!$privateKey || !openssl_sign($data, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
+        throw new RuntimeException('Chiave privata VAPID non valida.');
+    }
+    return $data . '.' . base64url_encode(der_to_jose_signature($signature, 64));
+}
+
+function der_to_jose_signature(string $der, int $partLength): string
+{
+    $offset = 2;
+    if (ord($der[1]) & 0x80) {
+        $offset += ord($der[1]) & 0x7f;
+    }
+    if (ord($der[$offset]) !== 0x02) {
+        throw new RuntimeException('Firma VAPID non valida.');
+    }
+    $rLength = ord($der[$offset + 1]);
+    $r = substr($der, $offset + 2, $rLength);
+    $offset += 2 + $rLength;
+    if (ord($der[$offset]) !== 0x02) {
+        throw new RuntimeException('Firma VAPID non valida.');
+    }
+    $sLength = ord($der[$offset + 1]);
+    $s = substr($der, $offset + 2, $sLength);
+    return str_pad(ltrim($r, "\x00"), $partLength / 2, "\x00", STR_PAD_LEFT) . str_pad(ltrim($s, "\x00"), $partLength / 2, "\x00", STR_PAD_LEFT);
+}
+
+function base64url_encode(string $data): string
+{
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
 }
 
 function admin_user_ids(): array
