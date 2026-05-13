@@ -50,13 +50,13 @@ Se usi phpMyAdmin o il pannello Plesk senza SSH, importa i file `.sql` uno alla 
 
 L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: il browser salva una sottoscrizione Push API collegata all'utente e il server invia un Web Push VAPID ogni volta che viene creata una notifica interna.
 
-Per abilitare l'invio Web Push genera le chiavi VAPID e copia i valori in `includes/config.php` nelle costanti `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`:
+Le chiavi VAPID sono già precompilate in `includes/config.php` per evitare errori in prima installazione. Per una configurazione definitiva del tuo dominio è comunque consigliato rigenerarle e sostituire `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`:
 
 ```bash
 php scripts/generate_vapid_keys.php
 ```
 
-Le notifiche push richiedono HTTPS in produzione; in locale i browser di solito consentono `localhost`.
+Le notifiche push richiedono HTTPS in produzione; in locale i browser di solito consentono `localhost`. Dopo aver cambiato la chiave pubblica VAPID, gli utenti devono disattivare/riattivare le notifiche sul dispositivo per registrare una nuova sottoscrizione.
 
 ## Credenziali admin iniziali
 
