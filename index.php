@@ -223,6 +223,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-11" defer></script>
+    <script src="assets/booking-app.js?v=20260513-12" defer></script>
 </body>
 </html>

@@ -575,9 +575,11 @@ async function markNotificationsRead() {
 function renderNotificationPermissionAction() {
   const btn = $('#enableDeviceNotificationsBtn');
   if (!btn) return;
-  const canNotify = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
-  btn.textContent = Notification.permission === 'granted' ? 'Attiva push su questo dispositivo' : 'Attiva notifiche dispositivo';
-  btn.classList.toggle('hidden', !canNotify || Notification.permission === 'denied' || state.pushSubscribed);
+  const notificationApi = window.Notification;
+  const canNotify = Boolean(notificationApi) && 'serviceWorker' in navigator && 'PushManager' in window;
+  const permission = canNotify ? notificationApi.permission : 'unsupported';
+  btn.textContent = permission === 'granted' ? 'Attiva push su questo dispositivo' : 'Attiva notifiche dispositivo';
+  btn.classList.toggle('hidden', !canNotify || permission === 'denied' || state.pushSubscribed);
 }
 
 async function requestDeviceNotifications() {
