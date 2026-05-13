@@ -56,6 +56,18 @@ function formData(form) {
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   localStorage.setItem('theme', theme);
+  applyThemeSurface();
+}
+
+function applyThemeSurface() {
+  const background = state.appSettings?.background_color || '#ffffff';
+  if (document.documentElement.dataset.theme === 'dark') {
+    document.documentElement.style.removeProperty('--bg');
+    document.documentElement.style.removeProperty('--card');
+    return;
+  }
+  document.documentElement.style.setProperty('--bg', background);
+  document.documentElement.style.setProperty('--card', background);
 }
 
 function switchAuth(tab) {
@@ -688,8 +700,7 @@ function applyAppSettings() {
   const background = settings.background_color || '#ffffff';
   document.documentElement.style.setProperty('--blue', primary);
   document.documentElement.style.setProperty('--red', accent);
-  document.documentElement.style.setProperty('--bg', background);
-  document.documentElement.style.setProperty('--card', background);
+  applyThemeSurface();
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', primary);
   if (settings.business_name) {
     document.title = settings.business_name;

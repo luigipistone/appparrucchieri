@@ -7,14 +7,25 @@ ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
+    $sessionLifetime = 60 * 60 * 24 * 30;
+    ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
     session_set_cookie_params([
-        'lifetime' => 0,
+        'lifetime' => $sessionLifetime,
         'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax',
         'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
     ]);
     session_start();
+    if (!empty($_SESSION)) {
+        setcookie(session_name(), session_id(), [
+            'expires' => time() + $sessionLifetime,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        ]);
+    }
 }
 
 function db(): PDO
