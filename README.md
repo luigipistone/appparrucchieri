@@ -11,10 +11,11 @@ Webapp mobile-first in PHP, JavaScript/AJAX e MySQL per gestire prenotazioni di 
 - Prenotazione automatica confermata, modifica ed eliminazione appuntamenti.
 - Dashboard admin con calendario mensile di tutti gli appuntamenti.
 - Chiusure settimanali e giorni speciali configurabili dall'admin.
-- Notifiche interne per admin e clienti su nuove prenotazioni e cancellazioni, con popup per le non lette e archivio separato per quelle lette.
+- Notifiche interne per admin e clienti su nuove prenotazioni, modifiche e cancellazioni, con popup per le non lette e archivio separato per quelle lette.
 - Gestione appuntamenti, apertura WhatsApp verso il cliente, gestione servizi e clienti.
 - Profilo modificabile per clienti e admin, inclusa la password.
 - Tema light/dark, layout responsive e palette blu/rosso/bianco/grigi.
+- Supporto PWA installabile con manifest, service worker e notifiche dispositivo mentre l'app è aperta o in background.
 
 ## Installazione su Plesk
 
@@ -34,6 +35,7 @@ Le modifiche database sono versionate nella cartella `migrations/` e vanno appli
 3. `003_seed_initial_data.sql` inserisce admin iniziale e servizi di esempio.
 4. `004_create_closure_settings.sql` aggiunge chiusure settimanali e giorni speciali.
 5. `005_create_notifications.sql` aggiunge le notifiche interne per admin e clienti.
+6. `006_create_push_subscriptions.sql` salva le sottoscrizioni Web Push dei dispositivi.
 
 Da terminale, se Plesk consente l'accesso SSH, puoi eseguire:
 
@@ -42,6 +44,19 @@ php scripts/migrate.php
 ```
 
 Se usi phpMyAdmin o il pannello Plesk senza SSH, importa i file `.sql` uno alla volta nello stesso ordine. `database.sql` resta disponibile come snapshot completo per installazioni iniziali rapide, ma gli aggiornamenti futuri andranno aggiunti come nuove migration incrementali.
+
+
+## PWA e notifiche dispositivo
+
+L'app include `manifest.webmanifest` e `service-worker.js`, quindi può essere installata come PWA dai browser supportati. Dal popup notifiche l'utente può abilitare le notifiche dispositivo: il browser salva una sottoscrizione Push API collegata all'utente e il server invia un Web Push VAPID ogni volta che viene creata una notifica interna.
+
+Per abilitare l'invio Web Push genera le chiavi VAPID e copia i valori in `includes/config.php` nelle costanti `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`:
+
+```bash
+php scripts/generate_vapid_keys.php
+```
+
+Le notifiche push richiedono HTTPS in produzione; in locale i browser di solito consentono `localhost`.
 
 ## Credenziali admin iniziali
 

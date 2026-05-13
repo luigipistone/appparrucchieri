@@ -8,11 +8,15 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#335eac">
     <meta name="csrf-token" content="<?= csrf_token() ?>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Barber">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
     <title><?= APP_NAME ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-9">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-11">
 </head>
 <body>
     <div class="app-shell">
@@ -163,6 +167,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
         <form method="dialog" class="panel notifications-panel">
             <button class="close" value="cancel" aria-label="Chiudi">×</button>
             <div class="modal-head"><h2>Notifiche</h2><button class="ghost" id="markNotificationsReadBtn" type="button">Segna lette</button></div>
+            <button class="ghost notification-permission hidden" id="enableDeviceNotificationsBtn" type="button">Attiva notifiche dispositivo</button>
             <div id="notificationsList" class="list compact-list"></div>
             <button class="archive-link" id="openNotificationArchiveBtn" type="button">Archivio</button>
         </form>
@@ -218,6 +223,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-9" defer></script>
+    <script src="assets/booking-app.js?v=20260513-11" defer></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0 };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0, notifiedNotificationIds: new Set(), notificationPollTimer: null, pushSubscribed: false };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -76,11 +76,12 @@ function bindEvents() {
   $('#registerForm').addEventListener('submit', submitAuth('register'));
   $('#forgotForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('forgot_password', formData(event.currentTarget)); toast(res.message); if (res.reset_url_demo) console.info('Reset URL demo:', res.reset_url_demo); });
   $('#resetForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('reset_password', formData(event.currentTarget)); toast(res.message); event.currentTarget.classList.add('hidden'); switchAuth('login'); });
-  $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; state.notifications = []; state.notificationArchive = []; state.unreadNotifications = 0; renderNotifications(); renderNotificationArchive(); renderSession(); });
+  $('#logoutBtn').addEventListener('click', async () => { await unsubscribeFromPushNotifications(); await api('logout', {}); state.user = null; state.notifications = []; state.notificationArchive = []; state.unreadNotifications = 0; state.notifiedNotificationIds.clear(); state.pushSubscribed = false; stopNotificationPolling(); renderNotifications(); renderNotificationArchive(); renderSession(); });
   $('#profileHeaderBtn').addEventListener('click', () => showView('profile'));
   $('#notificationsBtn').addEventListener('click', openNotifications);
   $('#markNotificationsReadBtn').addEventListener('click', markNotificationsRead);
   $('#openNotificationArchiveBtn').addEventListener('click', openNotificationArchive);
+  $('#enableDeviceNotificationsBtn').addEventListener('click', requestDeviceNotifications);
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; state.day = `${state.month}-01`; await refreshCalendar(); });
   $('#prevMonth').addEventListener('click', () => shiftCalendar(-1));
@@ -110,7 +111,9 @@ function bindEvents() {
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
+  registerServiceWorker();
 }
+
 
 function submitAuth(action) {
   return async event => {
@@ -139,7 +142,9 @@ function renderSession() {
   if (!isAdmin()) state.bookingStep = 'services';
   $('#roleLabel').textContent = isAdmin() ? 'Area admin' : 'Area cliente';
   renderBookingStep();
+  if (logged) startNotificationPolling(); else stopNotificationPolling();
 }
+
 
 function isAdmin() { return state.user?.role === 'admin'; }
 
@@ -499,12 +504,16 @@ async function saveClosures(event) {
   await refreshAll();
 }
 
-async function refreshNotifications() {
+async function refreshNotifications(announce = false) {
   if (!state.user) return;
+  const previousIds = new Set(state.notifications.map(item => String(item.id)));
   const res = await api('notifications');
   state.notifications = res.notifications || [];
   state.unreadNotifications = res.unread || 0;
   renderNotifications();
+  renderNotificationPermissionAction();
+  if (announce) notifyDeviceForNewNotifications(state.notifications.filter(item => !previousIds.has(String(item.id))));
+  state.notifications.forEach(item => state.notifiedNotificationIds.add(String(item.id)));
 }
 
 async function refreshNotificationArchive() {
@@ -513,6 +522,7 @@ async function refreshNotificationArchive() {
   state.notificationArchive = res.notifications || [];
   state.unreadNotifications = res.unread || 0;
   renderNotifications();
+  renderNotificationPermissionAction();
   renderNotificationArchive();
 }
 
@@ -547,6 +557,7 @@ function renderNotificationArchive() {
 
 async function openNotifications() {
   await refreshNotifications();
+  renderNotificationPermissionAction();
   $('#notificationsDialog').showModal();
 }
 
@@ -559,6 +570,102 @@ async function openNotificationArchive() {
 async function markNotificationsRead() {
   await api('notifications_read', {});
   await refreshNotifications();
+}
+
+function renderNotificationPermissionAction() {
+  const btn = $('#enableDeviceNotificationsBtn');
+  if (!btn) return;
+  const canNotify = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+  btn.textContent = Notification.permission === 'granted' ? 'Attiva push su questo dispositivo' : 'Attiva notifiche dispositivo';
+  btn.classList.toggle('hidden', !canNotify || Notification.permission === 'denied' || state.pushSubscribed);
+}
+
+async function requestDeviceNotifications() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Notifiche push non supportate da questo browser.');
+    return;
+  }
+  const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (permission !== 'granted') {
+    renderNotificationPermissionAction();
+    toast('Permesso notifiche non concesso.');
+    return;
+  }
+  try {
+    await subscribeToPushNotifications();
+    toast('Notifiche push attivate.');
+  } catch (error) {
+    toast(error.message);
+  }
+  renderNotificationPermissionAction();
+}
+
+async function subscribeToPushNotifications() {
+  const key = (await api('push_public_key')).publicKey;
+  if (!key) throw new Error('Configura prima le chiavi VAPID sul server.');
+  const registration = await navigator.serviceWorker.ready;
+  const existing = await registration.pushManager.getSubscription();
+  const subscription = existing || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+  await api('push_subscribe', subscription.toJSON());
+  state.pushSubscribed = true;
+}
+
+async function syncPushSubscriptionState() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const registration = await navigator.serviceWorker.ready.catch(() => null);
+  if (!registration) return;
+  state.pushSubscribed = Boolean(await registration.pushManager.getSubscription());
+  renderNotificationPermissionAction();
+}
+
+
+async function unsubscribeFromPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const registration = await navigator.serviceWorker.ready.catch(() => null);
+  const subscription = registration ? await registration.pushManager.getSubscription() : null;
+  if (!subscription) return;
+  await api('push_unsubscribe', { endpoint: subscription.endpoint }).catch(() => {});
+  await subscription.unsubscribe().catch(() => {});
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = '='.repeat((4 - value.length % 4) % 4);
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+}
+
+async function notifyDeviceForNewNotifications(items) {
+  if (!items.length || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const fresh = items.filter(item => !state.notifiedNotificationIds.has(String(item.id)));
+  if (!fresh.length) return;
+  const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.ready.catch(() => null) : null;
+  fresh.slice(0, 3).forEach(item => {
+    const options = { body: item.body || '', icon: 'assets/icon.svg', badge: 'assets/icon.svg', tag: `barber-notification-${item.id}` };
+    if (registration) registration.showNotification(item.title, options);
+    else new Notification(item.title, options);
+    state.notifiedNotificationIds.add(String(item.id));
+  });
+}
+
+function startNotificationPolling() {
+  if (state.notificationPollTimer) return;
+  state.notificationPollTimer = window.setInterval(() => {
+    if (state.user) refreshNotifications(true).catch(error => console.warn(error));
+  }, 60000);
+}
+
+function stopNotificationPolling() {
+  if (!state.notificationPollTimer) return;
+  window.clearInterval(state.notificationPollTimer);
+  state.notificationPollTimer = null;
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').then(syncPushSubscriptionState).catch(error => console.warn('Service worker non registrato:', error));
+  });
 }
 
 function renderProfile() {
