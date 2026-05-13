@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {} };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -88,6 +88,10 @@ function bindEvents() {
   $('#serviceForm').addEventListener('submit', saveService);
   $('#appointmentEditForm').addEventListener('submit', saveAppointmentEdit);
   $('#userEditForm').addEventListener('submit', saveUserEdit);
+  $('#closuresForm').addEventListener('submit', saveClosures);
+  $('#addSpecialClosureBtn').addEventListener('click', addSpecialClosure);
+  $('#appointmentEditForm').elements.service_id.addEventListener('change', loadAppointmentEditAvailability);
+  $('#appointmentEditForm').elements.date.addEventListener('change', renderAppointmentEditTimes);
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
@@ -127,12 +131,17 @@ async function refreshAll() {
   state.services = services.services;
   state.appointments = appointments.appointments;
   state.selectedService = state.selectedService || null;
-  if (isAdmin()) state.users = (await api('users')).users;
+  if (isAdmin()) {
+    const [users, closures] = await Promise.all([api('users'), api('closure_settings')]);
+    state.users = users.users;
+    state.closureSettings = { weekly: closures.weekly || [], special: closures.special || [] };
+  }
   await refreshCalendar();
   renderServices();
   renderAppointments();
   renderAdminServices();
   renderClients();
+  renderClosures();
   renderProfile();
   renderBookingStep();
 }
@@ -314,16 +323,47 @@ function wireAppointmentActions(root) {
   }));
 }
 
-function openAppointmentDialog(appointment) {
+async function openAppointmentDialog(appointment) {
   const form = $('#appointmentEditForm');
   form.reset();
+  form.dataset.appointmentId = appointment.id;
+  form.dataset.currentDate = appointment.starts_at.slice(0, 10);
+  form.dataset.currentTime = appointment.starts_at.slice(11, 16);
   form.elements.id.value = appointment.id;
   form.elements.user_id.value = appointment.user_id;
-  form.elements.date.value = appointment.starts_at.slice(0, 10);
-  form.elements.time.value = appointment.starts_at.slice(11, 16);
   form.elements.service_id.innerHTML = state.services.map(service => `<option value="${service.id}">${escapeHtml(service.name)} · ${service.duration_minutes} min</option>`).join('');
   form.elements.service_id.value = appointment.service_id;
+  await loadAppointmentEditAvailability();
   $('#appointmentDialog').showModal();
+}
+
+async function loadAppointmentEditAvailability() {
+  const form = $('#appointmentEditForm');
+  const serviceId = form.elements.service_id.value;
+  const appointmentId = form.elements.id.value;
+  const currentDate = form.dataset.currentDate;
+  const targetMonth = (form.elements.date.value || currentDate || state.month).slice(0, 7);
+  const availability = await api(`availability&service_id=${serviceId}&month=${targetMonth}&exclude_appointment_id=${appointmentId}`);
+  state.editingAppointmentAvailability = availability.days || {};
+  const dates = Object.entries(state.editingAppointmentAvailability).filter(([, data]) => data.available > 0 || data.slots?.length);
+  form.elements.date.innerHTML = dates.length
+    ? dates.map(([date, data]) => `<option value="${date}">${formatDate(date)} · ${data.slots.length} posti</option>`).join('')
+    : '<option value="">Nessuna data disponibile</option>';
+  if (currentDate && state.editingAppointmentAvailability[currentDate]?.slots?.length) {
+    form.elements.date.value = currentDate;
+  }
+  renderAppointmentEditTimes();
+}
+
+function renderAppointmentEditTimes() {
+  const form = $('#appointmentEditForm');
+  const date = form.elements.date.value;
+  const currentTime = form.dataset.currentTime;
+  const slots = state.editingAppointmentAvailability[date]?.slots || [];
+  form.elements.time.innerHTML = slots.length
+    ? slots.map(time => `<option value="${time}">${time}</option>`).join('')
+    : '<option value="">Nessun posto</option>';
+  if (slots.includes(currentTime)) form.elements.time.value = currentTime;
 }
 
 async function saveAppointmentEdit(event) {
@@ -388,6 +428,45 @@ async function saveUserEdit(event) {
   await refreshAll();
 }
 
+function renderClosures() {
+  if (!isAdmin()) return;
+  const weekdays = [
+    [1, 'Lunedì'], [2, 'Martedì'], [3, 'Mercoledì'], [4, 'Giovedì'], [5, 'Venerdì'], [6, 'Sabato'], [7, 'Domenica']
+  ];
+  $('#weeklyClosures').innerHTML = weekdays.map(([value, label]) => `<label class="check closure-check"><input type="checkbox" value="${value}" ${state.closureSettings.weekly.includes(value) ? 'checked' : ''}> ${label}</label>`).join('');
+  $('#specialClosures').innerHTML = state.closureSettings.special.length
+    ? state.closureSettings.special.map((item, index) => `<article class="list-item"><div><h3>${formatDate(item.closure_date)}</h3><p>${escapeHtml(item.label || 'Chiusura speciale')}</p></div><div class="actions"><button class="danger" data-remove-special="${index}" type="button">Rimuovi</button></div></article>`).join('')
+    : '<p class="hint">Nessun giorno speciale inserito.</p>';
+  $$('[data-remove-special]').forEach(btn => btn.addEventListener('click', () => {
+    state.closureSettings.special.splice(Number(btn.dataset.removeSpecial), 1);
+    renderClosures();
+  }));
+}
+
+function addSpecialClosure() {
+  const date = $('#specialClosureDate').value;
+  const label = $('#specialClosureLabel').value.trim();
+  if (!date) {
+    toast('Seleziona una data speciale.');
+    return;
+  }
+  if (!state.closureSettings.special.some(item => item.closure_date === date)) {
+    state.closureSettings.special.push({ closure_date: date, label });
+  }
+  $('#specialClosureDate').value = '';
+  $('#specialClosureLabel').value = '';
+  renderClosures();
+}
+
+async function saveClosures(event) {
+  event.preventDefault();
+  const weekly = $$('#weeklyClosures input:checked').map(input => Number(input.value));
+  const special = state.closureSettings.special.map(item => ({ date: item.closure_date, label: item.label || '' }));
+  await api('closure_save', { weekly, special });
+  toast('Chiusure salvate.');
+  await refreshAll();
+}
+
 function renderProfile() {
   const u = state.user;
   $('#profileForm').innerHTML = `<div class="two-cols"><label>Nome<input name="first_name" value="${escapeAttr(u.first_name)}" required></label><label>Cognome<input name="last_name" value="${escapeAttr(u.last_name)}" required></label></div><label>Email<input name="email" type="email" value="${escapeAttr(u.email)}" required></label><label>Telefono<input name="phone" value="${escapeAttr(u.phone)}" required></label>${isAdmin() ? '<label>Ruolo<select name="role"><option value="admin">Admin</option><option value="cliente">Cliente</option></select></label>' : ''}<label>Nuova password <span class="hint">(opzionale)</span><input name="password" type="password" minlength="8"></label><button class="primary" type="submit">Salva profilo</button>`;
@@ -436,6 +515,7 @@ function localIso(date) {
   return `${y}-${m}-${d}`;
 }
 function normalizeWa(phone) { return phone.replace(/[^0-9]/g, ''); }
+function formatDate(date) { return new Date(`${date}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[char])); }
 function escapeAttr(value) { return escapeHtml(value); }
 

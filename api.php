@@ -22,6 +22,8 @@ try {
         'services' => handle_services(),
         'service_save' => handle_service_save(),
         'service_delete' => handle_service_delete(),
+        'closure_settings' => handle_closure_settings(),
+        'closure_save' => handle_closure_save(),
         'availability' => handle_availability(),
         'appointments' => handle_appointments(),
         'appointment_save' => handle_appointment_save(),
@@ -193,6 +195,43 @@ function handle_service_delete(): void
     json_response(['ok' => true]);
 }
 
+
+function handle_closure_settings(): void
+{
+    require_admin();
+    $weekly = array_map('intval', db()->query('SELECT weekday FROM weekly_closures ORDER BY weekday')->fetchAll(PDO::FETCH_COLUMN) ?: []);
+    $special = db()->query('SELECT closure_date, label FROM special_closures ORDER BY closure_date')->fetchAll();
+    json_response(['ok' => true, 'weekly' => $weekly, 'special' => $special]);
+}
+
+function handle_closure_save(): void
+{
+    require_admin();
+    $data = input();
+    $weekly = array_values(array_unique(array_filter(array_map('intval', $data['weekly'] ?? []), fn($day) => $day >= 1 && $day <= 7)));
+    $special = is_array($data['special'] ?? null) ? $data['special'] : [];
+
+    db()->beginTransaction();
+    db()->exec('DELETE FROM weekly_closures');
+    $weeklyStmt = db()->prepare('INSERT INTO weekly_closures (weekday) VALUES (?)');
+    foreach ($weekly as $day) {
+        $weeklyStmt->execute([$day]);
+    }
+
+    db()->exec('DELETE FROM special_closures');
+    $specialStmt = db()->prepare('INSERT INTO special_closures (closure_date, label) VALUES (?, ?)');
+    foreach ($special as $item) {
+        $date = (string)($item['date'] ?? $item['closure_date'] ?? '');
+        $label = trim((string)($item['label'] ?? '')) ?: null;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $specialStmt->execute([$date, $label]);
+        }
+    }
+    db()->commit();
+
+    json_response(['ok' => true]);
+}
+
 function month_bounds(string $month): array
 {
     $start = DateTimeImmutable::createFromFormat('!Y-m', $month) ?: new DateTimeImmutable('first day of this month');
@@ -204,13 +243,14 @@ function handle_availability(): void
     require_auth();
     $serviceId = (int)($_GET['service_id'] ?? 0);
     $month = (string)($_GET['month'] ?? date('Y-m'));
+    $excludeId = (int)($_GET['exclude_appointment_id'] ?? 0);
     $service = fetch_service($serviceId);
     if (!$service) {
         json_response(['ok' => false, 'message' => 'Servizio non disponibile.'], 404);
     }
     [$start, $end] = month_bounds($month);
-    $stmt = db()->prepare("SELECT starts_at, ends_at FROM appointments WHERE status='confermato' AND starts_at BETWEEN ? AND ?");
-    $stmt->execute([$start, $end]);
+    $stmt = db()->prepare("SELECT starts_at, ends_at FROM appointments WHERE status='confermato' AND id <> ? AND starts_at BETWEEN ? AND ?");
+    $stmt->execute([$excludeId, $start, $end]);
     $busy = $stmt->fetchAll();
 
     $days = [];
@@ -227,6 +267,9 @@ function handle_availability(): void
 
 function day_slots(string $date, int $duration, array $busy): array
 {
+    if (is_closed_day($date)) {
+        return [];
+    }
     $weekday = (int)(new DateTimeImmutable($date))->format('N');
     $slots = [];
     foreach (OPENING_HOURS[$weekday] ?? [] as [$from, $to]) {
@@ -242,6 +285,20 @@ function day_slots(string $date, int $duration, array $busy): array
         }
     }
     return $slots;
+}
+
+function is_closed_day(string $date): bool
+{
+    $weekday = (int)(new DateTimeImmutable($date))->format('N');
+    $stmt = db()->prepare('SELECT 1 FROM weekly_closures WHERE weekday = ? LIMIT 1');
+    $stmt->execute([$weekday]);
+    if ($stmt->fetchColumn()) {
+        return true;
+    }
+
+    $stmt = db()->prepare('SELECT 1 FROM special_closures WHERE closure_date = ? LIMIT 1');
+    $stmt->execute([$date]);
+    return (bool)$stmt->fetchColumn();
 }
 
 function is_busy(DateTimeImmutable $start, DateTimeImmutable $end, array $busy): bool
@@ -303,6 +360,9 @@ function handle_appointment_save(): void
     $ends = $starts->modify('+' . (int)$service['duration_minutes'] . ' minutes');
     if ($starts < new DateTimeImmutable('-5 minutes')) {
         json_response(['ok' => false, 'message' => 'Non puoi prenotare nel passato.'], 422);
+    }
+    if (!in_array($starts->format('H:i'), day_slots($date, (int)$service['duration_minutes'], []), true)) {
+        json_response(['ok' => false, 'message' => 'Il posto scelto non è prenotabile in questa data.'], 422);
     }
 
     db()->beginTransaction();

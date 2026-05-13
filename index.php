@@ -12,7 +12,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-4">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-5">
 </head>
 <body>
     <div class="app-shell">
@@ -77,9 +77,10 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
             <section id="appView" class="hidden">
                 <nav class="mobile-nav" aria-label="Navigazione principale">
                     <button class="nav-item active" data-view="dashboard" type="button"><svg viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg><span>Calendario</span></button>
-                    <button class="nav-item" data-view="appointments" type="button"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg><span>Appunt.</span></button>
+                    <button class="nav-item" data-view="appointments" type="button"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg><span>Appuntamenti</span></button>
                     <button class="nav-item admin-only" data-view="services" type="button"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Zm0 5 8 4 8-4M4 17l8 4 8-4"/></svg><span>Servizi</span></button>
                     <button class="nav-item admin-only" data-view="clients" type="button"><svg viewBox="0 0 24 24"><path d="M16 11a4 4 0 1 0-8 0m8 0a4 4 0 1 1-8 0m8 0h1a4 4 0 0 1 4 4v1M8 11H7a4 4 0 0 0-4 4v1m4 4h10a2 2 0 0 0 2-2 6 6 0 0 0-14 0 2 2 0 0 0 2 2Z"/></svg><span>Clienti</span></button>
+                    <button class="nav-item admin-only" data-view="closures" type="button"><svg viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M7 14h4m-4 4h7M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg><span>Chiusure</span></button>
                     <button class="nav-item" data-view="profile" type="button"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0"/></svg><span>Profilo</span></button>
                 </nav>
 
@@ -123,6 +124,19 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
                     <div id="clientList" class="list"></div>
                 </section>
 
+                <section class="view hidden" id="closuresView">
+                    <div class="section-head"><div><span class="eyebrow">Admin</span><h1>Chiusure</h1></div></div>
+                    <form id="closuresForm" class="panel form-grid">
+                        <label>Giorni di chiusura settimanali</label>
+                        <div id="weeklyClosures" class="closure-grid"></div>
+                        <label>Giorni speciali</label>
+                        <div class="two-cols"><input id="specialClosureDate" type="date"><input id="specialClosureLabel" placeholder="Descrizione es. Natale"></div>
+                        <button class="ghost" id="addSpecialClosureBtn" type="button">Aggiungi giorno speciale</button>
+                        <div id="specialClosures" class="list compact-list"></div>
+                        <button class="primary" type="submit">Salva chiusure</button>
+                    </form>
+                </section>
+
                 <section class="view hidden" id="profileView">
                     <div class="section-head"><div><span class="eyebrow">Account</span><h1>Profilo</h1></div></div>
                     <form id="profileForm" class="panel form-grid"></form>
@@ -146,7 +160,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
             <h2>Modifica appuntamento</h2>
             <input type="hidden" name="id"><input type="hidden" name="user_id">
             <label>Servizio<select name="service_id" required></select></label>
-            <div class="two-cols"><label>Data<input name="date" type="date" required></label><label>Orario<input name="time" type="time" step="1800" required></label></div>
+            <div class="two-cols"><label>Data<select name="date" required></select></label><label>Orario<select name="time" required></select></label></div>
             <button class="primary" type="submit">Salva appuntamento</button>
         </form>
     </dialog>
@@ -181,6 +195,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-4" defer></script>
+    <script src="assets/booking-app.js?v=20260513-5" defer></script>
 </body>
 </html>
