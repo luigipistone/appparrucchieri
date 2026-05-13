@@ -1,4 +1,4 @@
-const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], unreadNotifications: 0 };
+const state = { csrf: document.querySelector('meta[name="csrf-token"]')?.content || '', user: null, services: [], appointments: [], users: [], selectedService: null, month: new Date().toISOString().slice(0, 7), day: new Date().toISOString().slice(0, 10), availability: {}, bookingStep: 'services', pendingBooking: null, appointmentDateFilter: '', closureSettings: { weekly: [], special: [] }, editingAppointmentAvailability: {}, notifications: [], notificationArchive: [], unreadNotifications: 0 };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -76,10 +76,11 @@ function bindEvents() {
   $('#registerForm').addEventListener('submit', submitAuth('register'));
   $('#forgotForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('forgot_password', formData(event.currentTarget)); toast(res.message); if (res.reset_url_demo) console.info('Reset URL demo:', res.reset_url_demo); });
   $('#resetForm').addEventListener('submit', async event => { event.preventDefault(); const res = await api('reset_password', formData(event.currentTarget)); toast(res.message); event.currentTarget.classList.add('hidden'); switchAuth('login'); });
-  $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; state.notifications = []; state.unreadNotifications = 0; renderNotifications(); renderSession(); });
+  $('#logoutBtn').addEventListener('click', async () => { await api('logout', {}); state.user = null; state.notifications = []; state.notificationArchive = []; state.unreadNotifications = 0; renderNotifications(); renderNotificationArchive(); renderSession(); });
   $('#profileHeaderBtn').addEventListener('click', () => showView('profile'));
   $('#notificationsBtn').addEventListener('click', openNotifications);
   $('#markNotificationsReadBtn').addEventListener('click', markNotificationsRead);
+  $('#openNotificationArchiveBtn').addEventListener('click', openNotificationArchive);
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
   $('#monthPicker').addEventListener('change', async e => { state.month = e.target.value; state.day = `${state.month}-01`; await refreshCalendar(); });
   $('#prevMonth').addEventListener('click', () => shiftCalendar(-1));
@@ -160,6 +161,7 @@ async function refreshAll() {
   renderClosures();
   renderProfile();
   renderBookingStep();
+  renderNotificationArchive();
   await refreshNotifications();
 }
 
@@ -505,6 +507,21 @@ async function refreshNotifications() {
   renderNotifications();
 }
 
+async function refreshNotificationArchive() {
+  if (!state.user) return;
+  const res = await api('notifications&archive=1');
+  state.notificationArchive = res.notifications || [];
+  state.unreadNotifications = res.unread || 0;
+  renderNotifications();
+  renderNotificationArchive();
+}
+
+function notificationItem(item, archived = false) {
+  const status = archived && item.read_at ? `<small>Letta il ${formatDateTime(item.read_at)}</small>` : '';
+  const action = archived ? '' : `<button class="ghost" data-read-notification="${item.id}" type="button">Letta</button>`;
+  return `<article class="list-item notification-item ${archived ? 'archived' : 'unread'}"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body || '')}</p><small>${formatDateTime(item.created_at)}</small>${status}</div>${action}</article>`;
+}
+
 function renderNotifications() {
   const badge = $('#notificationBadge');
   badge.textContent = state.unreadNotifications > 9 ? '9+' : String(state.unreadNotifications);
@@ -512,17 +529,31 @@ function renderNotifications() {
   const list = $('#notificationsList');
   if (!list) return;
   list.innerHTML = state.notifications.length
-    ? state.notifications.map(item => `<article class="list-item notification-item ${item.read_at ? '' : 'unread'}"><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body || '')}</p><small>${formatDateTime(item.created_at)}</small></div>${item.read_at ? '' : `<button class="ghost" data-read-notification="${item.id}" type="button">Letta</button>`}</article>`).join('')
-    : '<p class="hint">Nessuna notifica.</p>';
+    ? state.notifications.map(item => notificationItem(item)).join('')
+    : '<p class="hint">Nessuna nuova notifica.</p>';
   $$('[data-read-notification]').forEach(btn => btn.addEventListener('click', async () => {
     await api('notifications_read', { id: btn.dataset.readNotification });
     await refreshNotifications();
   }));
 }
 
+function renderNotificationArchive() {
+  const list = $('#notificationArchiveList');
+  if (!list) return;
+  list.innerHTML = state.notificationArchive.length
+    ? state.notificationArchive.map(item => notificationItem(item, true)).join('')
+    : '<div class="panel form-grid"><p class="hint">Nessuna notifica archiviata.</p></div>';
+}
+
 async function openNotifications() {
   await refreshNotifications();
   $('#notificationsDialog').showModal();
+}
+
+async function openNotificationArchive() {
+  $('#notificationsDialog').close();
+  await refreshNotificationArchive();
+  showView('notificationArchive');
 }
 
 async function markNotificationsRead() {
@@ -547,7 +578,8 @@ async function saveProfile(event) {
 function showView(view) {
   $$('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
   $$('.view').forEach(section => section.classList.add('hidden'));
-  $(`#${view}View`).classList.remove('hidden');
+  const target = $(`#${view}View`);
+  if (target) target.classList.remove('hidden');
 }
 
 function shiftCalendar(delta) {

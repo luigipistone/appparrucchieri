@@ -43,12 +43,14 @@ try {
 function handle_notifications(): void
 {
     $user = require_auth();
-    $stmt = db()->prepare('SELECT id, appointment_id, type, title, body, read_at, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50');
+    $archived = (string)($_GET['archive'] ?? '') === '1';
+    $readFilter = $archived ? 'read_at IS NOT NULL' : 'read_at IS NULL';
+    $stmt = db()->prepare("SELECT id, appointment_id, type, title, body, read_at, created_at FROM notifications WHERE user_id = ? AND $readFilter ORDER BY created_at DESC LIMIT 50");
     $stmt->execute([(int)$user['id']]);
     $items = $stmt->fetchAll();
     $countStmt = db()->prepare('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL');
     $countStmt->execute([(int)$user['id']]);
-    json_response(['ok' => true, 'notifications' => $items, 'unread' => (int)$countStmt->fetchColumn()]);
+    json_response(['ok' => true, 'notifications' => $items, 'unread' => (int)$countStmt->fetchColumn(), 'archive' => $archived]);
 }
 
 function handle_notifications_read(): void

@@ -11,7 +11,7 @@ Webapp mobile-first in PHP, JavaScript/AJAX e MySQL per gestire prenotazioni di 
 - Prenotazione automatica confermata, modifica ed eliminazione appuntamenti.
 - Dashboard admin con calendario mensile di tutti gli appuntamenti.
 - Chiusure settimanali e giorni speciali configurabili dall'admin.
-- Notifiche interne per admin e clienti su nuove prenotazioni e cancellazioni.
+- Notifiche interne per admin e clienti su nuove prenotazioni e cancellazioni, con popup per le non lette e archivio separato per quelle lette.
 - Gestione appuntamenti, apertura WhatsApp verso il cliente, gestione servizi e clienti.
 - Profilo modificabile per clienti e admin, inclusa la password.
 - Tema light/dark, layout responsive e palette blu/rosso/bianco/grigi.
