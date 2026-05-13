@@ -86,6 +86,8 @@ function bindEvents() {
   $('#confirmBookingBtn').addEventListener('click', confirmPendingBooking);
   $('#newServiceBtn').addEventListener('click', () => openServiceDialog());
   $('#serviceForm').addEventListener('submit', saveService);
+  $('#appointmentEditForm').addEventListener('submit', saveAppointmentEdit);
+  $('#userEditForm').addEventListener('submit', saveUserEdit);
   $$('[data-close-dialog]').forEach(btn => btn.addEventListener('click', () => btn.closest('dialog').close()));
   $('#profileForm').addEventListener('submit', saveProfile);
   window.addEventListener('resize', () => { if (state.user) renderCalendar(); });
@@ -306,12 +308,28 @@ function appointmentRow(a) {
 
 function wireAppointmentActions(root) {
   $$('[data-del-appt]', root).forEach(btn => btn.addEventListener('click', async () => { if (confirm('Eliminare questo appuntamento?')) { await api('appointment_delete', { id: btn.dataset.delAppt }); toast('Appuntamento eliminato.'); await refreshCalendar(); } }));
-  $$('[data-edit-appt]', root).forEach(btn => btn.addEventListener('click', async () => {
-    const a = state.appointments.find(item => Number(item.id) === Number(btn.dataset.editAppt));
-    const date = prompt('Nuova data (AAAA-MM-GG)', a.starts_at.slice(0, 10));
-    const time = date && prompt('Nuovo orario (HH:MM)', a.starts_at.slice(11, 16));
-    if (date && time) await saveAppointment({ id: a.id, service_id: a.service_id, user_id: a.user_id, date, time });
+  $$('[data-edit-appt]', root).forEach(btn => btn.addEventListener('click', () => {
+    const appointment = state.appointments.find(item => Number(item.id) === Number(btn.dataset.editAppt));
+    if (appointment) openAppointmentDialog(appointment);
   }));
+}
+
+function openAppointmentDialog(appointment) {
+  const form = $('#appointmentEditForm');
+  form.reset();
+  form.elements.id.value = appointment.id;
+  form.elements.user_id.value = appointment.user_id;
+  form.elements.date.value = appointment.starts_at.slice(0, 10);
+  form.elements.time.value = appointment.starts_at.slice(11, 16);
+  form.elements.service_id.innerHTML = state.services.map(service => `<option value="${service.id}">${escapeHtml(service.name)} · ${service.duration_minutes} min</option>`).join('');
+  form.elements.service_id.value = appointment.service_id;
+  $('#appointmentDialog').showModal();
+}
+
+async function saveAppointmentEdit(event) {
+  event.preventDefault();
+  await saveAppointment(formData(event.currentTarget));
+  $('#appointmentDialog').close();
 }
 
 async function saveAppointment(payload) {
@@ -346,15 +364,28 @@ async function saveService(event) {
 function renderClients() {
   if (!isAdmin()) return;
   $('#clientList').innerHTML = state.users.map(u => `<article class="list-item"><div><h3>${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)}</h3><p>${escapeHtml(u.role)} · ${escapeHtml(u.email)} · ${escapeHtml(u.phone)}</p></div><div class="actions"><button class="ghost" data-edit-user="${u.id}" type="button">Modifica</button></div></article>`).join('');
-  $$('[data-edit-user]').forEach(btn => btn.addEventListener('click', async () => {
-    const u = state.users.find(item => Number(item.id) === Number(btn.dataset.editUser));
-    const first_name = prompt('Nome', u.first_name) || u.first_name;
-    const last_name = prompt('Cognome', u.last_name) || u.last_name;
-    const email = prompt('Email', u.email) || u.email;
-    const phone = prompt('Telefono', u.phone) || u.phone;
-    await api('user_save', { ...u, first_name, last_name, email, phone });
-    toast('Utente aggiornato.'); await refreshAll();
+  $$('[data-edit-user]').forEach(btn => btn.addEventListener('click', () => {
+    const user = state.users.find(item => Number(item.id) === Number(btn.dataset.editUser));
+    if (user) openUserDialog(user);
   }));
+}
+
+function openUserDialog(user) {
+  const form = $('#userEditForm');
+  form.reset();
+  ['id', 'first_name', 'last_name', 'email', 'phone', 'role'].forEach(name => { form.elements[name].value = user[name] || ''; });
+  form.elements.password.value = '';
+  $('#userDialog').showModal();
+}
+
+async function saveUserEdit(event) {
+  event.preventDefault();
+  const data = formData(event.currentTarget);
+  if (!data.password) delete data.password;
+  await api('user_save', data);
+  $('#userDialog').close();
+  toast('Utente aggiornato.');
+  await refreshAll();
 }
 
 function renderProfile() {

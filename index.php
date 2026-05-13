@@ -12,8 +12,7 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-2">
-    <link rel="stylesheet" href="assets/styles.css?v=20260513-2">
+    <link rel="stylesheet" href="assets/styles.css?v=20260513-4">
 </head>
 <body>
     <div class="app-shell">
@@ -140,6 +139,32 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
         </form>
     </dialog>
 
+
+    <dialog id="appointmentDialog" class="modal">
+        <form id="appointmentEditForm" class="panel">
+            <button class="close" value="cancel" type="button" data-close-dialog>×</button>
+            <h2>Modifica appuntamento</h2>
+            <input type="hidden" name="id"><input type="hidden" name="user_id">
+            <label>Servizio<select name="service_id" required></select></label>
+            <div class="two-cols"><label>Data<input name="date" type="date" required></label><label>Orario<input name="time" type="time" step="1800" required></label></div>
+            <button class="primary" type="submit">Salva appuntamento</button>
+        </form>
+    </dialog>
+
+    <dialog id="userDialog" class="modal">
+        <form id="userEditForm" class="panel">
+            <button class="close" value="cancel" type="button" data-close-dialog>×</button>
+            <h2>Modifica utente</h2>
+            <input type="hidden" name="id">
+            <div class="two-cols"><label>Nome<input name="first_name" required></label><label>Cognome<input name="last_name" required></label></div>
+            <label>Email<input name="email" type="email" required></label>
+            <label>Telefono<input name="phone" type="tel" required></label>
+            <label>Ruolo<select name="role"><option value="cliente">Cliente</option><option value="admin">Admin</option></select></label>
+            <label>Nuova password <span class="hint">(opzionale)</span><input name="password" type="password" minlength="8"></label>
+            <button class="primary" type="submit">Salva utente</button>
+        </form>
+    </dialog>
+
     <dialog id="serviceDialog" class="modal">
         <form id="serviceForm" class="panel" enctype="multipart/form-data">
             <button class="close" value="cancel" type="button" data-close-dialog>×</button>
@@ -156,7 +181,6 @@ $resetToken = htmlspecialchars((string)($_GET['reset'] ?? ''), ENT_QUOTES, 'UTF-
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script>window.APP_BOOT = { resetToken: "<?= $resetToken ?>" };</script>
-    <script src="assets/booking-app.js?v=20260513-3" defer></script>
-    <script src="assets/app.js?v=20260513-2" defer></script>
+    <script src="assets/booking-app.js?v=20260513-4" defer></script>
 </body>
 </html>
