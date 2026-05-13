@@ -42,10 +42,18 @@ function json_response(array $payload, int $status = 200): void
     exit;
 }
 
+function raw_input(): string
+{
+    static $raw = null;
+    if ($raw === null) {
+        $raw = file_get_contents('php://input') ?: '';
+    }
+    return $raw;
+}
+
 function input(): array
 {
-    $raw = file_get_contents('php://input');
-    $json = json_decode($raw ?: '', true);
+    $json = json_decode(raw_input(), true);
     if (is_array($json)) {
         return $json;
     }
@@ -60,11 +68,36 @@ function csrf_token(): string
     return $_SESSION['csrf_token'];
 }
 
+function request_header(string $name): string
+{
+    $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+    if (!empty($_SERVER[$serverKey])) {
+        return (string)$_SERVER[$serverKey];
+    }
+
+    $redirectKey = 'REDIRECT_' . $serverKey;
+    if (!empty($_SERVER[$redirectKey])) {
+        return (string)$_SERVER[$redirectKey];
+    }
+
+    if (function_exists('getallheaders')) {
+        foreach (getallheaders() as $header => $value) {
+            if (strcasecmp((string)$header, $name) === 0) {
+                return (string)$value;
+            }
+        }
+    }
+
+    return '';
+}
+
 function verify_csrf(): void
 {
-    $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? '');
+    $json = json_decode(raw_input(), true);
+    $bodyToken = is_array($json) ? ($json['csrf_token'] ?? '') : ($_POST['csrf_token'] ?? '');
+    $token = request_header('X-CSRF-Token') ?: request_header('X-CSRFToken') ?: $bodyToken;
     if (!hash_equals($_SESSION['csrf_token'] ?? '', (string)$token)) {
-        json_response(['ok' => false, 'message' => 'Token di sicurezza non valido.'], 419);
+        json_response(['ok' => false, 'message' => 'Token di sicurezza non valido. Aggiorna la pagina e riprova.'], 419);
     }
 }
 

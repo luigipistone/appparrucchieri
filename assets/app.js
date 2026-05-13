@@ -2,16 +2,37 @@ const state = { csrf: '', user: null, services: [], appointments: [], users: [],
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-async function api(action, data = null, options = {}) {
+async function ensureCsrf(force = false) {
+  if (state.csrf && !force) return state.csrf;
+  if (!state.csrfPromise || force) {
+    state.csrfPromise = fetch('api.php?action=csrf')
+      .then(response => response.json())
+      .then(payload => {
+        if (!payload.ok || !payload.csrf) throw new Error(payload.message || 'Token di sicurezza non disponibile.');
+        state.csrf = payload.csrf;
+        return state.csrf;
+      })
+      .finally(() => { state.csrfPromise = null; });
+  }
+  return state.csrfPromise;
+}
+
+async function api(action, data = null, options = {}, retryOnCsrf = true) {
+  if (data) await ensureCsrf();
   const init = { method: data ? 'POST' : 'GET', headers: { 'X-CSRF-Token': state.csrf }, ...options };
   if (data && !(data instanceof FormData)) {
     init.headers['Content-Type'] = 'application/json';
-    init.body = JSON.stringify(data);
+    init.body = JSON.stringify({ ...data, csrf_token: state.csrf });
   } else if (data) {
+    data.set('csrf_token', state.csrf);
     init.body = data;
   }
   const response = await fetch(`api.php?action=${action}`, init);
   const payload = await response.json().catch(() => ({ ok: false, message: 'Risposta non valida.' }));
+  if (response.status === 419 && retryOnCsrf) {
+    await ensureCsrf(true);
+    return api(action, data, options, false);
+  }
   if (!response.ok || !payload.ok) throw new Error(payload.message || 'Operazione non riuscita.');
   if (payload.csrf) state.csrf = payload.csrf;
   return payload;
