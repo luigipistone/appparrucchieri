@@ -38,6 +38,7 @@ Le modifiche database sono versionate nella cartella `migrations/` e vanno appli
 5. `005_create_notifications.sql` aggiunge le notifiche interne per admin e clienti.
 6. `006_create_push_subscriptions.sql` salva le sottoscrizioni Web Push dei dispositivi.
 7. `007_create_app_settings.sql` aggiunge logo, nome attività e palette colori configurabili dall'admin.
+8. `008_create_remember_tokens.sql` aggiunge token persistenti per mantenere il login.
 
 Da terminale, se Plesk consente l'accesso SSH, puoi eseguire:
 

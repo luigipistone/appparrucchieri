@@ -456,6 +456,7 @@ function handle_login(): void
 
     session_regenerate_id(true);
     $_SESSION['user_id'] = (int)$user['id'];
+    remember_user((int)$user['id']);
     json_response(['ok' => true, 'user' => current_user()]);
 }
 
@@ -480,11 +481,13 @@ function handle_register(): void
     }
 
     $_SESSION['user_id'] = (int)db()->lastInsertId();
+    remember_user((int)$_SESSION['user_id']);
     json_response(['ok' => true, 'user' => current_user()]);
 }
 
 function handle_logout(): void
 {
+    forget_remembered_user();
     $_SESSION = [];
     session_destroy();
     json_response(['ok' => true]);

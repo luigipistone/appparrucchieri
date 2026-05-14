@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 
+const REMEMBER_COOKIE = 'barber_remember';
+const REMEMBER_LIFETIME = 2592000;
+
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
@@ -115,12 +118,69 @@ function verify_csrf(): void
 function current_user(): ?array
 {
     if (empty($_SESSION['user_id'])) {
+        restore_remembered_user();
+    }
+    if (empty($_SESSION['user_id'])) {
         return null;
     }
     $stmt = db()->prepare('SELECT id, role, first_name, last_name, email, phone, created_at FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     return $user ?: null;
+}
+
+function remember_user(int $userId): void
+{
+    $selector = bin2hex(random_bytes(12));
+    $token = bin2hex(random_bytes(32));
+    db()->prepare('DELETE FROM remember_tokens WHERE user_id = ? OR expires_at < NOW()')->execute([$userId]);
+    db()->prepare('INSERT INTO remember_tokens (user_id, selector, token_hash, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY))')
+        ->execute([$userId, $selector, hash('sha256', $token)]);
+    setcookie(REMEMBER_COOKIE, $selector . ':' . $token, remember_cookie_options(time() + REMEMBER_LIFETIME));
+}
+
+function forget_remembered_user(): void
+{
+    $cookie = (string)($_COOKIE[REMEMBER_COOKIE] ?? '');
+    if (str_contains($cookie, ':')) {
+        [$selector] = explode(':', $cookie, 2);
+        db()->prepare('DELETE FROM remember_tokens WHERE selector = ?')->execute([$selector]);
+    }
+    setcookie(REMEMBER_COOKIE, '', remember_cookie_options(time() - 3600));
+}
+
+function restore_remembered_user(): void
+{
+    $cookie = (string)($_COOKIE[REMEMBER_COOKIE] ?? '');
+    if (!str_contains($cookie, ':')) {
+        return;
+    }
+    [$selector, $token] = explode(':', $cookie, 2);
+    if (!preg_match('/^[a-f0-9]{24}$/', $selector) || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+        forget_remembered_user();
+        return;
+    }
+    $stmt = db()->prepare('SELECT user_id, token_hash FROM remember_tokens WHERE selector = ? AND expires_at > NOW() LIMIT 1');
+    $stmt->execute([$selector]);
+    $row = $stmt->fetch();
+    if (!$row || !hash_equals((string)$row['token_hash'], hash('sha256', $token))) {
+        forget_remembered_user();
+        return;
+    }
+    session_regenerate_id(true);
+    $_SESSION['user_id'] = (int)$row['user_id'];
+    remember_user((int)$row['user_id']);
+}
+
+function remember_cookie_options(int $expires): array
+{
+    return [
+        'expires' => $expires,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    ];
 }
 
 function require_auth(): array
