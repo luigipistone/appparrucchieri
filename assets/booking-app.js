@@ -366,7 +366,7 @@ function renderAppointments() {
 function appointmentRow(a) {
   const start = new Date(a.starts_at.replace(' ', 'T'));
   const wa = normalizeWa(a.phone || '');
-  return `<article class="list-item"><div><h3>${escapeHtml(a.service_name)} · ${start.toLocaleDateString('it-IT')} ${a.starts_at.slice(11,16)}</h3><p>${escapeHtml(a.first_name || '')} ${escapeHtml(a.last_name || '')} · ${escapeHtml(a.phone || '')}</p></div><div class="actions">${isAdmin() && wa ? `<a class="ghost" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<button class="ghost" data-edit-appt="${a.id}" type="button">Modifica</button><button class="danger" data-del-appt="${a.id}" type="button">Elimina</button></div></article>`;
+  return `<article class="list-item appointment-item"><div><h3>${escapeHtml(a.service_name)} · ${start.toLocaleDateString('it-IT')} ${a.starts_at.slice(11,16)}</h3><p>${escapeHtml(a.first_name || '')} ${escapeHtml(a.last_name || '')} · ${escapeHtml(a.phone || '')}</p></div><div class="actions appointment-actions">${isAdmin() && wa ? `<a class="ghost" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<button class="ghost" data-edit-appt="${a.id}" type="button">Modifica</button><button class="danger" data-del-appt="${a.id}" type="button">Elimina</button></div></article>`;
 }
 
 function wireAppointmentActions(root) {
@@ -731,7 +731,14 @@ function renderAppSettings() {
     return;
   }
   const settings = state.appSettings || {};
-  form.innerHTML = `<span class="eyebrow">Impostazioni app</span><h2>Brand e colori</h2><label>Logo attività <span class="hint">PNG, JPG o WEBP. Aggiorna anche favicon e app icon.</span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp"></label>${settings.logo_path ? `<img class="settings-logo-preview" src="${escapeAttr(settings.logo_path)}?v=${Date.now()}" alt="Logo attuale">` : ''}<div class="two-cols"><label>Nome attività<input name="business_name" value="${escapeAttr(settings.business_name || 'Barber')}" maxlength="80" required></label><label>Sottotitolo<input name="business_subtitle" value="${escapeAttr(settings.business_subtitle || 'booking')}" maxlength="80"></label></div><div class="three-cols"><label>Colore principale<input name="primary_color" type="color" value="${escapeAttr(settings.primary_color || '#335eac')}"></label><label>Colore accento<input name="accent_color" type="color" value="${escapeAttr(settings.accent_color || '#f42539')}"></label><label>Sfondo app<input name="background_color" type="color" value="${escapeAttr(settings.background_color || '#ffffff')}"></label></div><button class="primary" type="submit">Salva impostazioni app</button>`;
+  const primary = settings.primary_color || '#335eac';
+  const accent = settings.accent_color || '#f42539';
+  const background = settings.background_color || '#ffffff';
+  form.innerHTML = `<span class="eyebrow">Impostazioni app</span><h2>Brand e colori</h2><label>Logo attività <span class="hint">PNG, JPG o WEBP. Aggiorna anche favicon e app icon.</span><input name="logo" type="file" accept="image/png,image/jpeg,image/webp"></label>${settings.logo_path ? `<img class="settings-logo-preview" src="${escapeAttr(settings.logo_path)}?v=${Date.now()}" alt="Logo attuale">` : ''}<div class="two-cols"><label>Nome attività<input name="business_name" value="${escapeAttr(settings.business_name || 'Barber')}" maxlength="80" required></label><label>Sottotitolo<input name="business_subtitle" value="${escapeAttr(settings.business_subtitle || 'booking')}" maxlength="80"></label></div><div class="three-cols color-settings"><label>Colore principale<span class="color-control"><input name="primary_color" type="color" value="${escapeAttr(primary)}" data-color-preview="primary"><span class="color-code" data-color-code="primary">${escapeHtml(primary)}</span></span></label><label>Colore accento<span class="color-control"><input name="accent_color" type="color" value="${escapeAttr(accent)}" data-color-preview="accent"><span class="color-code" data-color-code="accent">${escapeHtml(accent)}</span></span></label><label>Sfondo app<span class="color-control"><input name="background_color" type="color" value="${escapeAttr(background)}" data-color-preview="background"><span class="color-code" data-color-code="background">${escapeHtml(background)}</span></span></label></div><button class="primary" type="submit">Salva impostazioni app</button>`;
+  $$('[data-color-preview]', form).forEach(input => input.addEventListener('input', () => {
+    const code = $(`[data-color-code="${input.dataset.colorPreview}"]`, form);
+    if (code) code.textContent = input.value;
+  }));
 }
 
 async function saveAppSettings(event) {
