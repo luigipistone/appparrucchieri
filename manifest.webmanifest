@@ -1,0 +1,19 @@
+{
+  "name": "Barber Booking",
+  "short_name": "Barber",
+  "description": "Prenotazioni mobile-first per salone da uomo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#335eac",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
