@@ -738,16 +738,45 @@ function renderAppSettings() {
   $$('[data-color-preview]', form).forEach(input => input.addEventListener('input', () => {
     const code = $(`[data-color-code="${input.dataset.colorPreview}"]`, form);
     if (code) code.textContent = input.value;
+    state.appSettings = { ...state.appSettings, ...appSettingsFromForm(form) };
+    applyAppSettings();
   }));
+}
+
+function appSettingsFromForm(form) {
+  return {
+    business_name: form.elements.business_name?.value?.trim() || state.appSettings.business_name || 'Barber',
+    business_subtitle: form.elements.business_subtitle?.value?.trim() || '',
+    primary_color: form.elements.primary_color?.value || state.appSettings.primary_color || '#335eac',
+    accent_color: form.elements.accent_color?.value || state.appSettings.accent_color || '#f42539',
+    background_color: form.elements.background_color?.value || state.appSettings.background_color || '#ffffff',
+  };
 }
 
 async function saveAppSettings(event) {
   event.preventDefault();
-  const res = await api('app_settings_save', new FormData(event.currentTarget));
-  state.appSettings = res.settings || {};
+  const form = event.currentTarget;
+  const previousSettings = { ...state.appSettings };
+  state.appSettings = { ...state.appSettings, ...appSettingsFromForm(form) };
   applyAppSettings();
-  renderAppSettings();
-  toast('Impostazioni app salvate.');
+  const button = $('button[type="submit"]', form);
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Salvataggio...';
+  }
+  toast('Salvataggio impostazioni...');
+  try {
+    const res = await api('app_settings_save', new FormData(form));
+    state.appSettings = res.settings || state.appSettings;
+    applyAppSettings();
+    renderAppSettings();
+    toast('Impostazioni app salvate.');
+  } catch (error) {
+    state.appSettings = previousSettings;
+    applyAppSettings();
+    renderAppSettings();
+    toast(error.message);
+  }
 }
 
 function renderProfile() {
