@@ -658,8 +658,14 @@ function handle_availability(): void
     $last = new DateTimeImmutable(substr($end, 0, 10));
     while ($cursor <= $last) {
         $date = $cursor->format('Y-m-d');
-        $slots = day_slots($date, (int)$service['duration_minutes'], $busy);
-        $days[$date] = ['available' => count($slots), 'slots' => $slots];
+        $closure = closed_day_details($date);
+        $slots = $closure['closed'] ? [] : day_slots($date, (int)$service['duration_minutes'], $busy);
+        $days[$date] = [
+            'available' => count($slots),
+            'slots' => $slots,
+            'closed' => $closure['closed'],
+            'closed_label' => $closure['label'],
+        ];
         $cursor = $cursor->modify('+1 day');
     }
     json_response(['ok' => true, 'days' => $days]);
@@ -689,16 +695,35 @@ function day_slots(string $date, int $duration, array $busy): array
 
 function is_closed_day(string $date): bool
 {
+    return closed_day_details($date)['closed'];
+}
+
+function closed_day_details(string $date): array
+{
+    $stmt = db()->prepare('SELECT label FROM special_closures WHERE closure_date = ? LIMIT 1');
+    $stmt->execute([$date]);
+    $special = $stmt->fetch();
+    if ($special) {
+        return [
+            'closed' => true,
+            'label' => $special['label'] ?: 'Chiusura speciale',
+        ];
+    }
+
     $weekday = (int)(new DateTimeImmutable($date))->format('N');
     $stmt = db()->prepare('SELECT 1 FROM weekly_closures WHERE weekday = ? LIMIT 1');
     $stmt->execute([$weekday]);
     if ($stmt->fetchColumn()) {
-        return true;
+        return [
+            'closed' => true,
+            'label' => 'Chiusura settimanale',
+        ];
     }
 
-    $stmt = db()->prepare('SELECT 1 FROM special_closures WHERE closure_date = ? LIMIT 1');
-    $stmt->execute([$date]);
-    return (bool)$stmt->fetchColumn();
+    return [
+        'closed' => false,
+        'label' => null,
+    ];
 }
 
 function is_busy(DateTimeImmutable $start, DateTimeImmutable $end, array $busy): bool

@@ -1,10 +1,10 @@
-const CACHE_NAME = 'barber-booking-v20260513-20';
+const CACHE_NAME = 'barber-booking-v20260515-01';
 const APP_SHELL = [
   './',
   './index.php',
   './manifest.webmanifest',
-  './assets/styles.css?v=20260513-20',
-  './assets/booking-app.js?v=20260513-20',
+  './assets/styles.css?v=20260515-01',
+  './assets/booking-app.js?v=20260515-01',
   './assets/app-icon.svg'
 ];
 

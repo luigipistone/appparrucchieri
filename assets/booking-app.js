@@ -300,12 +300,15 @@ function renderCalendar() {
     const iso = localIso(day);
     const inMonth = iso.slice(0, 7) === state.month;
     const appts = state.appointments.filter(a => a.starts_at.slice(0, 10) === iso);
-    const available = state.availability[iso]?.available || 0;
+    const availability = state.availability[iso] || {};
+    const available = availability.available || 0;
+    const closed = Boolean(availability.closed);
     const today = iso === localIso(new Date());
-    cells.push(`<button class="day ${inMonth ? '' : 'muted'} ${available ? 'available' : ''} ${today ? 'today' : ''}" data-day="${iso}" type="button">
+    cells.push(`<button class="day ${inMonth ? '' : 'muted'} ${available ? 'available' : ''} ${closed ? 'closed' : ''} ${today ? 'today' : ''}" data-day="${iso}" type="button" ${!isAdmin() && closed ? 'disabled' : ''}>
       <strong>${day.getDate()}</strong>
       ${isAdmin() ? appts.slice(0, 3).map(a => `<span class="appt">${a.starts_at.slice(11, 16)} ${escapeHtml(a.first_name)}</span>`).join('') : ''}
-      ${!isAdmin() && inMonth ? `<span class="badge">${available} posti</span>` : ''}
+      ${!isAdmin() && inMonth ? `<span class="badge">${closed ? escapeHtml(availability.closed_label || 'Chiuso') : `${available} posti`}</span>` : ''}
+      ${isAdmin() && closed ? `<span class="badge">${escapeHtml(availability.closed_label || 'Chiuso')}</span>` : ''}
       ${isAdmin() && appts.length ? `<span class="badge">${appts.length} app.</span>` : ''}
     </button>`);
   }
@@ -329,8 +332,10 @@ function renderDayCalendar() {
     wireAppointmentActions(grid);
     return;
   }
-  const slots = state.availability[iso]?.slots || [];
-  grid.innerHTML = `<div class="day-focus"><strong>${day.getDate()}</strong><span>${slots.length} posti disponibili</span></div><div class="slot-list">${slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>'}</div>`;
+  const availability = state.availability[iso] || {};
+  const slots = availability.slots || [];
+  const closedText = availability.closed ? escapeHtml(availability.closed_label || 'Chiuso') : '';
+  grid.innerHTML = `<div class="day-focus"><strong>${day.getDate()}</strong><span>${availability.closed ? closedText : `${slots.length} posti disponibili`}</span></div><div class="slot-list">${slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : `<p class="hint">${availability.closed ? 'Giorno chiuso: nessuna disponibilità.' : 'Nessun posto disponibile.'}</p>`}</div>`;
   $$('[data-book]', grid).forEach(btn => btn.addEventListener('click', () => chooseBookingTime(iso, btn.dataset.book)));
 }
 function openDay(day) {
@@ -341,8 +346,9 @@ function openDay(day) {
   const dialog = $('#slotDialog');
   $('#slotDialogTitle').textContent = new Date(`${day}T12:00:00`).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
   const list = $('#slotList');
-  const slots = state.availability[day]?.slots || [];
-  list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : '<p class="hint">Nessun posto disponibile.</p>';
+  const availability = state.availability[day] || {};
+  const slots = availability.slots || [];
+  list.innerHTML = slots.length ? slots.map(time => `<button class="slot" data-book="${time}" type="button">${time}</button>`).join('') : `<p class="hint">${availability.closed ? 'Giorno chiuso: nessuna disponibilità.' : 'Nessun posto disponibile.'}</p>`;
   $$('[data-book]', list).forEach(btn => btn.addEventListener('click', () => { dialog.close(); chooseBookingTime(day, btn.dataset.book); }));
   dialog.showModal();
 }
